@@ -8,10 +8,7 @@ $connectionOptions = [
 // Koneksi ke SQL Server dengan Windows Authentication
 $conn = sqlsrv_connect($serverName, $connectionOptions);
 
-if ($conn) {
-    echo "Koneksi sukses!";
-} else {
-    echo "Gagal konek.<br>";
-    die(print_r(sqlsrv_errors(), true));
+if ($conn === false) {
+    die("Koneksi SQL Server gagal: " . print_r(sqlsrv_errors(), true));
 }
 ?>

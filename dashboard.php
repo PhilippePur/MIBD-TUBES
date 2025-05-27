@@ -1,4 +1,4 @@
-<!-- <?php
+<?php
 include 'testsql.php';
 
 $sql = "SELECT * FROM Videos";
@@ -10,14 +10,14 @@ if ($result === false) {
 
 while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
     echo "<tr>";
-    echo "<td>" . htmlspecialchars($row['filename']) . "</td>";
-    echo "<td>" . number_format($row['filesize'] / 1024, 2) . " KB</td>";
-    echo "<td>" . $row['upload_date']->format('Y-m-d H:i:s') . "</td>";
-    echo "<td><a href='" . $row['filepath'] . "' target='_blank'>Lihat</a></td>";
+    echo "<td>" . htmlspecialchars($row['title']) . "</td>";
+    // echo "<td>" . number_format($row['filesize'] / 1024, 2) . " KB</td>";
+    echo "<td>" . $row['uploaded_at']->format('Y-m-d H:i:s') . "</td>";
+    echo "<td><a href='" . $row['path'] . "' target='_blank'>Lihat</a></td>";
     echo "</tr>";
 }
 echo "</table>";
-?> -->
+?>
 
 <!DOCTYPE html>
 <html>
