@@ -1,6 +1,5 @@
 <?php
 require_once 'testsql.php'; // Koneksi SQL Server
-
 $sql = "SELECT 
             V.id,
             V.title,
@@ -8,7 +7,7 @@ $sql = "SELECT
             V.uploaded_at,
             C.namaChannel,
             C.fotoProfil,
-            COUNT(T.idUser) AS jumlahView
+            ISNULL(SUM(T.jumlahTonton), 0) AS jumlahView
         FROM Videos V
         JOIN Channel C ON V.idChannel = C.idChannel
         LEFT JOIN Tonton T ON V.id = T.idVideo
@@ -16,6 +15,7 @@ $sql = "SELECT
             V.id, V.title, V.thumbnail, V.uploaded_at, 
             C.namaChannel, C.fotoProfil
         ORDER BY V.id ASC";
+
 $result = sqlsrv_query($conn, $sql);
 
 $videos = [];
@@ -29,8 +29,8 @@ for ($i = 0; $i < 9; $i++):
   $left = [320, 734, 1148];
   $top = [183, 453, 723];
 
-  $x = $left[$i % 3] + 10;
-  $y = $top[floor($i / 3)] + 30;
+  $x = $left[$i % 3] + 8;
+  $y = $top[floor($i / 3)] + 7;
 
   $color = ['#EB4A4A', '#20EFAE', '#3C36FE', '#FF4BB7', '#2E412B', '#E1E63E', '#308120', '#37B8EF', '#AD45EA'][$i];
   ?>
@@ -185,7 +185,7 @@ for ($i = 0; $i < 9; $i++):
         </div>
       </div>
       <div data-layer="Navigations/SearchBox-Button" class="NavigationsSearchboxButton"
-        style="width: 64px; height: 40px; padding-left: 7px; padding-right: 7px; padding-top: 2px; padding-bottom: 2px; left: 575px; top: 0px; position: absolute; background: #303030; overflow: hidden; border-top-right-radius: 2px; border-bottom-right-radius: 2px; outline: 1px #303030 solid; outline-offset: -1px; flex-direction: column; justify-content: flex-start; align-items: flex-start; gap: 10px; display: inline-flex">
+        style="width: 64px; height: 36px; padding-left: 7px; padding-right: 7px; padding-top: 2px; padding-bottom: 2px; left: 575px; top: 0px; position: absolute; background: #303030; overflow: hidden; border-top-right-radius: 2px; border-bottom-right-radius: 2px; outline: 1px #303030 solid; outline-offset: -1px; flex-direction: column; justify-content: flex-start; align-items: flex-start; gap: 10px; display: inline-flex">
         <div data-layer="Navigations/SearchBox-Button/icon" class="NavigationsSearchboxButtonIcon"
           style="width: 50px; height: 36px; position: relative; background: #303030; overflow: hidden">
           <div data-svg-wrapper data-layer="search" class="Search" style="left: 13px; top: 6px; position: absolute">
@@ -270,9 +270,11 @@ for ($i = 0; $i < 9; $i++):
         <path d="M0.713867 1.43408H253.352" stroke="white" stroke-width="2" stroke-linecap="round" />
       </svg>
     </div>
-    <img data-layer="MainProfile" class="Mainprofile"
-      style="width: 75; height: 75; left: 1415; top: 22; position: absolute; border-radius: 200px"
-      src="Assets/MainProfile.jpg" alt="Foto Profil Utama">
+    <a href="EditChannelInd.php">
+      <img data-layer="MainProfile" class="Mainprofile"
+        style="width: 75; height: 75; left: 1415; top: 22; position: absolute; border-radius: 200px"
+        src="Assets/MainProfile.jpg" alt="Foto Profil Utama">
+    </a>
     <div data-layer="Rectangle 5" class="Rectangle5"
       style="width: 68px; height: 33px; left: 552px; top: 315px; position: absolute; background: black; border-radius: 21px">
     </div>

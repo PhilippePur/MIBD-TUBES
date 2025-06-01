@@ -56,9 +56,14 @@ if ($channelID) {
             </svg>
         </div>
 
-        <a href="index.php"
-            style="width: 104px; height: 43px; left: 318px; top: 159px; position: absolute; background: #795757; border-radius: 12px">
+        <a href="index.php" style="width: 104px; height: 43px; left: 318px; top: 159px; position: absolute; background: #795757; border-radius: 12px; 
+           text-align: center; justify-content: center; display: flex; align-items: center; text-decoration: none;">
+            <span style="color: #FFF3F3; font-size: 14px; font-family: Roboto; font-weight: 400; 
+                 line-height: 16px; letter-spacing: 0.40px;">
+                LogOut
+            </span>
         </a>
+
 
         <a href="upload.php" style="display: inline-block; width: 104px; height: 43px; left: 1109px; top: 159px; position: absolute; 
           background: #795757; border-radius: 12px; text-align: center; line-height: 43px; color: white; 
@@ -67,9 +72,6 @@ if ($channelID) {
         </a>
 
 
-        <div data-layer="LogOut" class="Logout"
-            style="width: 85px; left: 328px; top: 173px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: #FFF3F3; font-size: 14px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            LogOut</div>
 
         <a href="homepage.php" data-layer="Youtube-Logo" class="YoutubeLogo"
             style="width: 204px; height: 45px; left: 43px; top: 42px; position: absolute; overflow: hidden">

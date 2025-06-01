@@ -4,40 +4,52 @@ header("Cache-Control: no-cache, must-revalidate");
 header("Content-Type: application/json");
 
 $videoId = $_POST['video_id'] ?? null;
-$action = $_POST['action'] ?? null;
-$userId = 2; // ID user yang login — ganti sesuai kebutuhan
+$action = $_POST['action'] ?? null; // 1 = like, 2 = dislike
+$userId = 2; // Ganti sesuai sistem login
 
 if (!$videoId || !$action) {
-    // echo json_encode(['success' => false, 'message' => 'Data tidak lengkap']);
     exit;
 }
 
-// Cek apakah user sudah memberi like/dislike sebelumnya
-$cekSql = "SELECT * FROM Tonton WHERE idVideo = ? AND idUser = ?";
+// Ambil status likeDislike saat ini
+$cekSql = "SELECT likeDislike FROM Tonton WHERE idVideo = ? AND idUser = ?";
 $stmt = sqlsrv_query($conn, $cekSql, [$videoId, $userId]);
+$data = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
 
-if ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-    // Jika sudah ada, update like/dislike
-    $update = "UPDATE Tonton SET likeDislike = ? WHERE idVideo = ? AND idUser = ?";
-    sqlsrv_query($conn, $update, [$action, $videoId, $userId]);
+$userStatus = 0;
+
+if ($data) {
+    if ($data['likeDislike'] == $action) {
+        // Undo (klik tombol yang sama)
+        $update = "UPDATE Tonton SET likeDislike = 0 WHERE idVideo = ? AND idUser = ?";
+        sqlsrv_query($conn, $update, [$videoId, $userId]);
+        $userStatus = 0;
+    } else {
+        // Ubah pilihan
+        $update = "UPDATE Tonton SET likeDislike = ? WHERE idVideo = ? AND idUser = ?";
+        sqlsrv_query($conn, $update, [$action, $videoId, $userId]);
+        $userStatus = $action;
+    }
 } else {
-    // Jika belum ada, insert baru
-    $insert = "INSERT INTO Tonton (idVideo, idUser, lamaMenonton, likeDislike) VALUES (?, ?, 0, ?)";
+    // Belum pernah interaksi, insert baru
+    $insert = "INSERT INTO Tonton (idVideo, idUser, lamaMenonton, jumlahTonton, likeDislike) VALUES (?, ?, 0, 0, ?)";
     sqlsrv_query($conn, $insert, [$videoId, $userId, $action]);
+    $userStatus = $action;
 }
 
-// Hitung total like & dislike
+// Hitung jumlah like & dislike
 $countSql = "SELECT 
     SUM(CASE WHEN likeDislike = 1 THEN 1 ELSE 0 END) AS likes,
     SUM(CASE WHEN likeDislike = 2 THEN 1 ELSE 0 END) AS dislikes
     FROM Tonton WHERE idVideo = ?";
 $stmt = sqlsrv_query($conn, $countSql, [$videoId]);
-$data = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+$countData = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
 
-// Kirim respons JSON
+// Kirim respons JSON ke frontend
 echo json_encode([
     'success' => true,
-    'likes' => $data['likes'] ?? 0,
-    'dislikes' => $data['dislikes'] ?? 0
+    'likes' => $countData['likes'] ?? 0,
+    'dislikes' => $countData['dislikes'] ?? 0,
+    'user_status' => $userStatus
 ]);
 ?>

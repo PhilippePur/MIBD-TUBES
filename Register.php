@@ -192,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             </div>
         </div>
         <div data-layer="Rectangle 51" class="Rectangle51"
-            style="width: 829px; height: 777px; left: 103px; top: 181px; position: absolute; background: #D9D9D9; border-radius: 64px">
+            style="width: 829px; height: 900px; left: 103px; top: 181px; position: absolute; background: #D9D9D9; border-radius: 64px">
         </div>
 
         <a href="index.php"
@@ -216,9 +216,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             style="width: 148px; height: 36px; left: 174px; top: 585px; position: absolute; color: black; font-size: 30px; font-family: Inter; font-weight: 400; word-wrap: break-word">
             Password</div>
 
-        <div data-layer="Register" class="Register"
-            style="width: 103px; height: 28px; left: 466px; top: 867px; position: absolute; color: black; font-size: 25px; font-family: Inter; font-weight: 700; word-wrap: break-word">
-            Register</div>
 
         <img data-layer="YoutubeMascott" class="YoutubeMascott"
             style="width: 510.92px; height: 369px; left: 944px; top: 312px; position: absolute"
@@ -242,7 +239,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
            background: white; border-radius: 12px; border: 1px solid #ccc; 
            padding-left: 16px; font-size: 20px; box-sizing: border-box; color: black;">
 
-            <button type="submit" name="register" style="width: 333px; height: 59px; left: 351px; top: 851px; position: absolute; 
+            <button type="submit" name="register" style="width: 333px; height: 59px; left: 351px; top: 930px; position: absolute; 
            background: #4CAF50; border-radius: 12px; border: none; color: white; 
            font-size: 24px; font-weight: bold; cursor: pointer;">
                 Register

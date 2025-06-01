@@ -108,25 +108,34 @@
       style="width: 202px; left: 160px; top: 486px; position: absolute; color: black; font-size: 32px; font-family: Inter; font-weight: 400; word-wrap: break-word">
       Password</div>
 
-    <div data-layer="Rectangle 53" class="Rectangle53"
-      style="width: 209.19px; height: 81px; left: 267.73px; top: 838px; position: absolute; background: white; border-radius: 12px">
+    <!-- Grup Gugel -->
+    <div style="position: absolute; left: 267.73px; top: 838px; width: 209.19px; height: 81px;">
+      <div data-layer="Rectangle 53" class="Rectangle53"
+        style="width: 100%; height: 100%; background: white; border-radius: 12px; position: absolute;">
+      </div>
+      <img data-layer="GugelImg" class="GugelImg"
+        style="width: 64.02px; height: 64.02px; left: 17.49px; top: 7.49px; position: absolute; border-radius: 112.50px"
+        src="Assets/gugel.png">
+      <div data-layer="Gugel" class="Gugel"
+        style="left: 90px; top: 26px; position: absolute; color: black; font-size: 25px; font-family: Inter; font-weight: 700;">
+        Gugel
+      </div>
     </div>
 
-    <div data-layer="Rectangle 55" class="Rectangle55"
-      style="width: 209.19px; height: 81px; left: 550.09px; top: 838px; position: absolute; background: white; border-radius: 12px">
+    <!-- Grup Yuhuu -->
+    <div style="position: absolute; left: 550.09px; top: 838px; width: 209.19px; height: 81px;">
+      <div data-layer="Rectangle 55" class="Rectangle55"
+        style="width: 100%; height: 100%; background: white; border-radius: 12px; position: absolute;">
+      </div>
+      <img data-layer="YuhuImg" class="YuhuImg"
+        style="width: 116.15px; height: 66.71px; left: 5.27px; top: 7.59px; position: absolute; border-radius: 33.35px"
+        src="Assets/yuhuu.png">
+      <div data-layer="Yuhuu" class="Yuhuu"
+        style="left: 130px; top: 26px; position: absolute; color: black; font-size: 25px; font-family: Inter; font-weight: 700;">
+        Yuhuu
+      </div>
     </div>
-    <div data-layer="Gugel" class="Gugel"
-      style="width: 94px; left: 355px; top: 864px; position: absolute; color: black; font-size: 25px; font-family: Inter; font-weight: 700; word-wrap: break-word">
-      Gugel</div>
-    <div data-layer="Yuhuu" class="Yuhuu"
-      style="width: 90px; left: 669px; top: 864px; position: absolute; color: black; font-size: 25px; font-family: Inter; font-weight: 700; word-wrap: break-word">
-      Yuhuu</div>
-    <img data-layer="YuhuImg" class="YuhuImg"
-      style="width: 116.15px; height: 66.71px; left: 555.36px; top: 845.59px; position: absolute; border-radius: 33.35px"
-      src="Assets/yuhuu.png">
-    <img data-layer="GugelImg" class="GugelImg"
-      style="width: 64.02px; height: 64.02px; left: 285.22px; top: 845.49px; position: absolute; border-radius: 112.50px"
-      src="Assets/gugel.png">
+
 
     <div data-layer="Line 8" class="Line8"
       style="width: 335px; height: 0px; left: 160px; top: 771px; position: absolute; outline: 1px black solid; outline-offset: -0.50px">
