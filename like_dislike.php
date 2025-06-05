@@ -1,11 +1,12 @@
 <?php
 require_once 'testsql.php';
+session_start();
 header("Cache-Control: no-cache, must-revalidate");
 header("Content-Type: application/json");
 
 $videoId = $_POST['video_id'] ?? null;
 $action = $_POST['action'] ?? null; // 1 = like, 2 = dislike
-$userId = 2; // Ganti sesuai sistem login
+$userId = $_SESSION['uid'];; // Ganti sesuai sistem login
 
 if (!$videoId || !$action) {
     exit;

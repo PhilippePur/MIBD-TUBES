@@ -1,5 +1,11 @@
 <?php
 require_once 'testsql.php';
+session_start();
+
+$userId = $_SESSION['uid'];
+$username = $_SESSION['uname'];
+$fotoProfil = $_SESSION['fotoProfil'] ?: 'Assets/NoProfile.jpg';// path foto profil
+$generatedLink = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (empty($_POST['email']) || empty($_POST['role'])) {
@@ -7,37 +13,70 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit;
     }
 
-    $email = $_POST['email'];
-    $roleID = $_POST['role']; // role diisi dengan RoleID (bukan nama)
 
-    // Cek apakah email sudah ada
-    $checkSql = "SELECT * FROM [Admin] WHERE Email = ?";
-    $checkStmt = sqlsrv_query($conn, $checkSql, array($email));
+    $email = $_POST['email'];
+    $roleID = $_POST['role'];
+    $userid = $_SESSION['uid'];
+
+    // Ambil ChannelID milik user yang sedang login
+    $channelSql = "SELECT ChannelID FROM Admin WHERE UserID = ?";
+    $channelStmt = sqlsrv_query($conn, $channelSql, [$userid]);
+
+    if ($channelStmt === false || !sqlsrv_has_rows($channelStmt)) {
+        echo "<script>alert('Kamu belum memiliki channel!'); window.location.href='makeChannel.php';</script>";
+        exit;
+    }
+
+    $channelData = sqlsrv_fetch_array($channelStmt, SQLSRV_FETCH_ASSOC);
+    $channelID = $channelData['ChannelID'];
+
+    // Cek apakah email valid dan ambil user ID
+    $checkSql = "
+        SELECT U.Id AS UserID
+        FROM Users U
+        WHERE U.Email = ?
+    ";
+    $checkStmt = sqlsrv_query($conn, $checkSql, [$email]);
 
     if ($checkStmt === false) {
         echo "<script>alert('Terjadi kesalahan saat mengecek data.'); window.location.href='addAdmin.php';</script>";
         exit;
     }
 
-    if (sqlsrv_has_rows($checkStmt)) {
-        echo "<script>alert('Email sudah terdaftar!'); window.location.href='addAdmin.php';</script>";
+    $userData = sqlsrv_fetch_array($checkStmt, SQLSRV_FETCH_ASSOC);
+
+    if (!$userData) {
+        echo "<script>alert('Email tidak ditemukan di database!'); window.location.href='addAdmin.php';</script>";
         exit;
     }
 
-    // Tambahkan admin baru
-    $insertSql = "INSERT INTO [Admin] (Email, RoleID) VALUES (?, ?)";
-    $params = array($email, $roleID);
-    $insertStmt = sqlsrv_query($conn, $insertSql, $params);
+    $newUserId = $userData['UserID'];
 
-    if ($insertStmt === false) {
+    // Cek apakah user tersebut sudah admin di channel ini
+    $checkAdminSql = "SELECT * FROM Admin WHERE UserID = ? AND ChannelID = ?";
+    $stmtAdminCheck = sqlsrv_query($conn, $checkAdminSql, [$newUserId, $channelID]);
+
+    if (sqlsrv_has_rows($stmtAdminCheck)) {
+        echo "<script>alert('User ini sudah menjadi admin di channel kamu!'); window.location.href='addAdmin.php';</script>";
+        exit;
+    }
+
+    // Insert ke Admin
+    $sqlInsert = "
+        INSERT INTO Admin (UserID, ChannelID, RoleID, IsActive, CreatedAt)
+        VALUES (?, ?, ?, 1, GETDATE())
+    ";
+    $stmtInsert = sqlsrv_query($conn, $sqlInsert, [$newUserId, $channelID, $roleID]);
+
+    if ($stmtInsert === false) {
         echo "<script>alert('Gagal menambahkan admin!'); window.location.href='addAdmin.php';</script>";
     } else {
-        echo "<script>alert('Admin berhasil ditambahkan.'); window.location.href='updateChannel.php';</script>";
-        exit();
+        echo "<script>alert('Admin berhasil ditambahkan!'); window.location.href='EditChannelInd.php';</script>";
     }
 }
-?>
 
+
+?>
 <!DOCTYPE html>
 <html lang="id">
 
@@ -135,9 +174,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <div data-layer="Roles" class="Roles"
             style="left: 174px; top: 491px; position: absolute; color: black; font-size: 32px; font-family: Inter; font-weight: 400; word-wrap: break-word">
             Roles</div>
-        <div data-layer="Copy This Link for Invite" class="CopyThisLinkForInvite"
-            style="left: 176px; top: 796px; position: absolute; color: black; font-size: 32px; font-family: Inter; font-weight: 400; word-wrap: break-word">
-            Copy This Link for Invite</div>
+        <!-- Teks judul -->
+        <div
+            style="position: absolute; left: 176px; top: 796px; color: black; font-size: 32px; font-family: Inter; font-weight: 400;">
+            Copy This Link for Invite
+        </div>
+
+        <!-- Input berisi link -->
+        <input type="text" id="generatedLink" readonly
+            value="<?= isset($generatedLink) ? htmlspecialchars($generatedLink) : '' ?>"
+            style="position: absolute; left: 176px; top: 840px; width: 680px; padding: 10px; font-size: 16px; border-radius: 8px; border: 1px solid #ccc;">
+
 
         <form action="addAdmin.php" method="post">
             <!-- Input Email -->
@@ -149,10 +196,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                padding: 12px; background: #4A4A4A; color: white; border-radius: 5px; border: none; margin-top: 27px;
                font-family: Inter; font-size: 14px;">
                 <option value="">Pilih Role</option>
-                <option value="Owner">Owner</option>
-                <option value="Manager">Manager</option>
-                <option value="Editor">Editor</option>
-                <option value="Subtitle Editor">Subtitle Editor</option>
+                <option value="2">Manager</option>
+                <option value="3">Editor</option>
+                <option value="5">Subtitle Editor</option>
             </select>
 
             <!-- Tombol Submit -->
@@ -162,12 +208,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </button>
         </form>
 
+
         <img data-layer="YTMASCOTT" class="YTMASCOTT"
             style="width: 510.92px; height: 369px; left: 944px; top: 312px; position: absolute"
             src="Assets/Youtube-Mascott.png">
-        <div data-layer="Rectangle 54" class="Rectangle54"
+        <!-- <div data-layer="Rectangle 54" class="Rectangle54"
             style="width: 693px; height: 63px; left: 171px; top: 847px; position: absolute; background: white; border-radius: 12px">
-        </div>
+        </div> -->
 
         <div data-svg-wrapper data-layer="Vector" class="Vector">
             <svg width="12" height="7" viewBox="0 0 12 7" fill="none" xmlns="http://www.w3.org/2000/svg">

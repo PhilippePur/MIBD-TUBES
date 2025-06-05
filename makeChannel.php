@@ -1,46 +1,83 @@
 <?php
+session_start();
 require_once 'testsql.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $channelName = $_POST['channel_name'] ?? '';
     $channelType = $_POST['channel_type'] ?? '';
-    $descChannel = "ini channel baru"; // default deskripsi
-    $fotoProfil = null; // default null
+    $descChannel = $_POST['description'] ?? '';
+    $fotoProfil = null;
+
+    $userId = $_SESSION['uid']; // pastikan user sudah login
 
     if (empty($channelName) || $channelType === '') {
         echo "<script>alert('Nama Channel dan Tipe wajib diisi.'); window.location.href='makeChannel.php';</script>";
         exit;
     }
 
-    // Ubah tipe channel jadi angka (0 = individu, 1 = grup)
+    // Upload foto jika ada
+    if (isset($_FILES['photoProfil']) && $_FILES['photoProfil']['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = 'uploads/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        $fileName = uniqid() . '_' . basename($_FILES['photoProfil']['name']);
+        $tmpPath = $_FILES['photoProfil']['tmp_name'];
+        $targetPath = $uploadDir . $fileName;
+
+        if (move_uploaded_file($tmpPath, $targetPath)) {
+            $fotoProfil = $targetPath;
+        }
+    }
+
+    // Konversi tipe
     $channelTypeValue = ($channelType === 'Individual') ? 0 : 1;
 
-    // Simpan ke database
-    $sql = "INSERT INTO Channel (namaChannel, deskripsi, fotoProfil, channelType)
-            VALUES (?, ?, ?, ?)";
-    $params = array($channelName, $descChannel, $fotoProfil, $channelTypeValue);
-
-    $stmt = sqlsrv_query($conn, $sql, $params);
+    // Simpan ke tabel Channel
+    $sqlChannel = "INSERT INTO Channel (namaChannel, deskripsi, fotoProfil, channelType)
+               OUTPUT INSERTED.IdChannel
+               VALUES (?, ?, ?, ?)";
+    $paramsChannel = [$channelName, $descChannel, $fotoProfil, $channelTypeValue];
+    $stmt = sqlsrv_query($conn, $sqlChannel, $paramsChannel);
 
     if ($stmt === false) {
-        echo "<script>alert('Gagal membuat channel.'); window.location.href='makeChannel.php';</script>";
-        exit;
+        die("Insert channel gagal: " . print_r(sqlsrv_errors(), true));
     }
 
-    // Ambil ID channel
-    $sqlLastID = "SELECT SCOPE_IDENTITY() AS idChannel";
-    $stmtLastID = sqlsrv_query($conn, $sqlLastID);
-    $row = sqlsrv_fetch_array($stmtLastID, SQLSRV_FETCH_ASSOC);
-    $newChannelID = $row['idChannel'];
+    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    $newChannelID = $row['IdChannel'];
 
-    // Redirect ke halaman sesuai tipe channel
+
+    // Insert ke Admin (sebagai Owner)
+    $sqlAdmin = "INSERT INTO [Admin] (UserID, ChannelID, RoleID, IsActive, CreatedAt)
+                 VALUES (?, ?, 1, 1, GETDATE())";
+    $paramsAdmin = [$userId, $newChannelID];
+    $stmtAdmin = sqlsrv_query($conn, $sqlAdmin, $paramsAdmin);
+
+    if ($stmtAdmin === false) {
+        die("Gagal insert ke Admin: " . print_r(sqlsrv_errors(), true));
+    }
+
+    // Jika channel type = individual, update foto profil user
+    if ($channelTypeValue === 0 && $fotoProfil) {
+        $sqlUpdateUser = "UPDATE Users SET fotoProfil = ? WHERE Id = ?";
+        sqlsrv_query($conn, $sqlUpdateUser, [$fotoProfil, $userId]);
+
+        // Update session foto profil agar langsung tampil
+        $_SESSION['fotoProfil'] = $fotoProfil;
+    }
+
+    // Redirect
     if ($channelTypeValue == 0) {
-        echo "<script>window.location.href='EditChannelInd.php?id=$newChannelID';</script>";
+        echo "<script>window.location.href='homePage.php';</script>";
     } else {
-        echo "<script>window.location.href='UpdateChannel.php?id=$newChannelID';</script>";
+        echo "<script>window.location.href='homePage.php';</script>";
     }
     exit;
+
 }
+
 ?>
 
 
@@ -61,7 +98,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <body>
     <div data-layer="Make Channel" class="MakeChannel"
-        style="width: 1512px; height: 1009px; position: relative; background: white; overflow: hidden">
+        style="width: 1512px; height: 1309px; position: relative; background: white; overflow: hidden">
         <a href="homepage.php" data-layer="Youtube-Logo" class="YoutubeLogo"
             style="width: 258px; height: 57px; left: 56px; top: 53px; position: absolute; overflow: hidden">
             <div data-svg-wrapper data-layer="Vector" class="Vector" style="left: 0px; top: 0px; position: absolute">
@@ -137,51 +174,54 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             style="width: 829px; height: 761px; left: 103px; top: 181px; position: absolute; background: #D9D9D9; border-radius: 64px">
         </div>
         <div data-layer="Rectangle 53" class="Rectangle53"
-            style="width: 829px; height: 761px; left: 103px; top: 181px; position: absolute; background: #D9D9D9; border-radius: 64px">
+            style="width: 829px; height: 1061px; left: 103px; top: 181px; position: absolute; background: #D9D9D9; border-radius: 64px">
         </div>
         <div data-layer="Make Channel" class="MakeChannel"
-            style="width: 323px; height: 53px; left: 170px; top: 248px; position: absolute; color: black; font-size: 46px; font-family: Inter; font-weight: 400; word-wrap: break-word">
+            style="width: 323px; height: 53px; left: 170px; top: 210px; position: absolute; color: black; font-size: 46px; font-family: Inter; font-weight: 400; word-wrap: break-word">
             Make Channel</div>
-        <div data-layer="Name" class="Name"
-            style="width: 89px; height: 36px; left: 174px; top: 349px; position: absolute; color: black; font-size: 28px; font-family: Inter; font-weight: 400; word-wrap: break-word">
-            Name</div>
-        <div data-layer="Display Name" class="DisplayName"
-            style="width: 208px; height: 35px; left: 174px; top: 471px; position: absolute; color: black; font-size: 28px; font-family: Inter; font-weight: 400; word-wrap: break-word">
-            Display Name</div>
-        <div data-layer="Password" class="Password"
-            style="width: 148px; height: 36px; left: 176px; top: 588px; position: absolute; color: black; font-size: 28px; font-family: Inter; font-weight: 400; word-wrap: break-word">
-            Password</div>
 
-        <div data-layer="Make Channel" class="MakeChannel"
-            style="width: 174px; height: 27px; left: 430px; top: 837px; position: absolute; color: black; font-size: 25px; font-family: Inter; font-weight: 700; word-wrap: break-word">
-            Make Channel</div>
+        <div data-layer="Name" class="Name"
+            style="width: 89px; height: 36px; left: 174px; top: 499px; position: absolute; color: black; font-size: 28px; font-family: Inter; font-weight: 400; word-wrap: break-word">
+            Name</div>
+
+        <div data-layer="Foto Profil" class="FotoProfile"
+            style="width: 277px; height: 36px; left: 401px; top: 280px; position: absolute; color: black; font-size: 30px; font-family: Inter; font-weight: 400; word-wrap: break-word">
+            Select Photo Profile </div>
+        <img id="previewImage" src="Profile/NoProfile.jpg"
+            style="width: 130px; height: 130px; left: 455px; top: 323px; position: absolute; border-radius: 200px; object-fit: cover;"
+            alt="Preview Foto">
+
+        <div data-layer="Type" class="Type"
+            style="width: 75px; height: 36px; left: 176px; top: 620px; position: absolute; color: black; font-size: 28px; font-family: Inter; font-weight: 400; word-wrap: break-word">
+            Type</div>
+
+        <div data-layer="Description" class="Description"
+            style="width: 1005px; height: 36px; left: 176px; top: 715px; position: absolute; color: black; font-size: 28px; font-family: Inter; font-weight: 400; word-wrap: break-word">
+            Description</div>
+
         <img data-layer="YTMASCOTT" class="YTMASCOTT"
             style="width: 510.92px; height: 369px; left: 944px; top: 312px; position: absolute"
             src="Assets/Youtube-Mascott.png">
+
         <form action="makeChannel.php" method="POST" enctype="multipart/form-data">
             <!-- Input untuk Nama Channel -->
             <input type="text" name="channel_name" placeholder="Nama Channel"
-                style="width: 693px; height: 58px; left: 171px; top: 389px; position: absolute; background: white; border-radius: 12px"
+                style="width: 693px; height: 58px; left: 171px; top: 539px; position: absolute; background: white; border-radius: 12px"
                 required>
 
-            <!-- Input untuk Password Channel -->
-            <input type="password" name="channel_pass" placeholder="Password Channel"
-                style="width: 693px; height: 58px; left: 171px; top: 625px; position: absolute; background: white; border-radius: 12px">
-
-            <!-- Input untuk Display Name -->
-            <input type="text" name="display_name" placeholder="Display Name"
-                style="width: 693px; height: 58px; left: 171px; top: 511px; position: absolute; background: white; border-radius: 12px"
-                required>
+            <!-- Input untuk Descripion -->
+            <textarea name="description" placeholder="Description" style="width: 693px; height: 308px; left: 171px; top: 755px; position: absolute; 
+         background: white; border-radius: 12px; padding: 12px; resize: none; font-size: 16px;"></textarea>
 
             <!-- Group -->
-            <label style="position: absolute; left: 171px; top: 736px; display: flex; align-items: center; gap: 12px;">
+            <label style="position: absolute; left: 171px; top: 666px; display: flex; align-items: center; gap: 12px;">
                 <input type="radio" name="channel_type" value="Group" required
                     style="width: 20px; height: 20px; transform: scale(1.5); accent-color: #000;">
                 <span style="font-size: 28px; font-family: Inter;">Group</span>
             </label>
 
             <!-- Individual -->
-            <label style="position: absolute; left: 321px; top: 736px; display: flex; align-items: center; gap: 12px;">
+            <label style="position: absolute; left: 321px; top: 666px; display: flex; align-items: center; gap: 12px;">
                 <input type="radio" name="channel_type" value="Individual" required
                     style="width: 20px; height: 20px; transform: scale(1.5); accent-color: #000;">
                 <span style="font-size: 28px; font-family: Inter;">Individual</span>
@@ -189,15 +229,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             <!-- Tombol Submit -->
             <button type="submit"
-                style="width: 333px; height: 58px; left: 351px; top: 821px; position: absolute; background: white; border-radius: 12px; font-size: 16px; cursor: pointer;">
+                style="width: 333px; height: 58px; left: 351px; top: 1121px; position: absolute; background: white; border-radius: 12px; font-size: 16px; cursor: pointer;">
                 Make Channel
             </button>
-        </form>
+            <!-- Select Photo -->
+            <input type="file" id="photoInput" name="photoProfil" accept="image/*" style="display: none;"
+                onchange="document.getElementById('labelFoto').innerText = this.files[0]?.name || 'Select Photo'">
 
-        <div data-layer="Type" class="Type"
-            style="width: 75px; height: 36px; left: 176px; top: 689px; position: absolute; color: black; font-size: 28px; font-family: Inter; font-weight: 400; word-wrap: break-word">
-            Type</div>
+            <button type="button" onclick="document.getElementById('photoInput').click();" style="width: 150px; height: 40px; left: 450px; top: 460px; position: absolute;
+               background: #4CAF50; border-radius: 12px; border: none; color: white;
+               font-size: 20px; font-weight: bold; cursor: pointer; display: flex;
+               align-items: center; justify-content: center;">
+                Select Photo
+
+        </form>
     </div>
+    <script>
+        document.getElementById('photoInput').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('previewImage').src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
 </body>
 
 </html>

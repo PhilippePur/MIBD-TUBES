@@ -1,9 +1,10 @@
 <?php
 require_once 'testsql.php';
+session_start();
 
 $videoId = $_POST['video_id'] ?? null;
 $watchingTime = $_POST['watching_time'] ?? null;
-$userId = 2; // ganti sesuai sistem login
+$userId = $_SESSION['uid'];; // ganti sesuai sistem login
 
 if (!$videoId || !is_numeric($watchingTime)) {
     exit('Data tidak lengkap atau salah');

@@ -1,23 +1,56 @@
 <?php
 require_once 'testsql.php';
+session_start();
 
-// Ambil idChannel
-$channelID = $_GET['id'] ?? null;
-$data = [
-    'namaChannel' => '',
-    'deskripsi' => '',
-    'channelType' => '',
-];
+if (!isset($_SESSION['uid'])) {
+    header("Location: index.php");
+    exit;
+}
 
-if ($channelID) {
-    $sql = "SELECT * FROM Channel WHERE idChannel = ?";
-    $params = array($channelID);
-    $stmt = sqlsrv_query($conn, $sql, $params);
+$isAdmin = false;
+$uid = $_SESSION['uid'];
+
+if (isset($_SESSION['uid'])) {
+
+    $sql = "
+        SELECT A.ChannelID
+        FROM Admin A
+        WHERE A.UserID = ? AND( RoleID = 1 OR RoleID = 2) 
+    ";
+    $stmt = sqlsrv_query($conn, $sql, [$uid]);
 
     if ($stmt && sqlsrv_has_rows($stmt)) {
-        $data = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+        $isAdmin = true; // User sudah jadi admin
     }
 }
+
+$sql = "SELECT 
+            C.namaChannel, 
+            C.deskripsi, 
+            C.fotoProfil, 
+            U.Email,
+            A.ChannelID 
+        FROM Users U
+        INNER JOIN [Admin] A ON A.UserID = U.Id
+        INNER JOIN Channel C ON C.idChannel = A.ChannelID
+        WHERE U.id = ?";
+
+$params = [$uid];
+$stmt = sqlsrv_query($conn, $sql, $params);
+
+if ($stmt && sqlsrv_has_rows($stmt)) {
+    $channelInfo = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    // akses seperti: $channelInfo['namaChannel'], $channelInfo['Email'], dst
+} else {
+    echo "Channel tidak ditemukan atau tidak ada admin terkait.";
+}
+
+$usernameLama = $channelInfo['namaChannel'];
+$emailLama = $channelInfo['Email'];
+$fotoLama = $channelInfo['fotoProfil'];
+$deskripsiLama = $channelInfo['deskripsi'] ?? '';
+$channelID = $channelInfo['ChannelID'];
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -28,38 +61,28 @@ if ($channelID) {
 
 <body>
     <div data-layer="Profile & Update Channel" class="ProfileUpdateChannel"
-        style="width: 1512px; height: 1009px; position: relative; background: white; overflow: hidden">
+        style="width: 1512px; height: 1109px; position: relative; background: white; overflow: hidden">
         <div data-layer="Rectangle 8" class="Rectangle8"
-            style="width: 1118px; height: 989px; left: 197px; top: 132px; position: absolute; background: #D9D9D9; border-radius: 101px">
-        </div>
-        <img data-layer="MainProfile" class="Mainprofile"
-            style="width: 140px; height: 140px; left: 300px; top: 216px; position: absolute; border-radius: 200px"
-            src="Assets/MainProfile.jpg">
-        <div data-layer="Kapibara@email.com" class="KapibaraEmailCom"
-            style="width: 420px; height: 23px; left: 482px; top: 333px; position: absolute; color: black; font-size: 36px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Kapibara@email.com</div>
-        <div data-svg-wrapper data-layer="edit-01" class="Edit01" style="left: 1009px; top: 262px; position: absolute">
-            <svg width="43" height="43" viewBox="0 0 43 43" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                    d="M24.866 6.64193C26.965 4.54286 30.3683 4.54286 32.4674 6.64193L36.3581 10.5327C38.4572 12.6317 38.4572 16.035 36.3581 18.1341L20.4505 34.0417H37.625C38.6145 34.0417 39.4167 34.8438 39.4167 35.8334C39.4167 36.8229 38.6145 37.625 37.625 37.625H7.16667C6.17716 37.625 5.375 36.8229 5.375 35.8334V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.64193ZM15.3829 34.0417L29.7162 19.7084L23.2917 13.2838L8.95833 27.6172V34.0417H15.3829ZM25.8255 10.75L32.25 17.1746L33.8243 15.6003C34.524 14.9006 34.524 13.7662 33.8243 13.0665L29.9336 9.17573C29.2339 8.47604 28.0995 8.47604 27.3998 9.17573L25.8255 10.75Z"
-                    fill="black" />
-            </svg>
-        </div>
-        <div data-layer="Rectangle 9" class="Rectangle9"
-            style="width: 537px; height: 77px; left: 456px; top: 237px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
-        </div>
-        <div data-svg-wrapper data-layer="edit-03" class="Edit03" style="left: 300px; top: 289px; position: absolute">
-            <svg width="43" height="43" viewBox="0 0 43 43" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                    d="M24.866 6.64193C26.965 4.54286 30.3683 4.54286 32.4674 6.64193L36.3581 10.5327C38.4572 12.6317 38.4572 16.035 36.3581 18.1341L17.3919 37.1003C17.0559 37.4363 16.6002 37.625 16.125 37.625H7.16667C6.17716 37.625 5.375 36.8229 5.375 35.8334V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.64193ZM29.9336 9.17573C29.2339 8.47604 28.0995 8.47604 27.3998 9.17573L25.8255 10.75L32.25 17.1746L33.8243 15.6003C34.524 14.9006 34.524 13.7662 33.8243 13.0665L29.9336 9.17573ZM29.7162 19.7084L23.2917 13.2838L8.95833 27.6172V34.0417H15.3829L29.7162 19.7084Z"
-                    fill="#E63C3C" />
-            </svg>
+            style="width: 1118px; height: 950px; left: 197px; top: 132px; position: absolute; background: #D9D9D9; border-radius: 101px">
         </div>
 
-        <a href="index.php" style="width: 104px; height: 43px; left: 318px; top: 159px; position: absolute; background: #795757; border-radius: 12px; 
+        <img id="previewFoto" data-layer="MainProfile" class="Mainprofile"
+            style="width: 140px; height: 140px; left: 300px; top: 216px; position: absolute; border-radius: 200px"
+            src="<?= htmlspecialchars($fotoLama) ?>">
+
+
+        <div style="width: 104px; height: 43px; left: 318px; top: 370px; position: absolute; background: #795757; border-radius: 12px; 
            text-align: center; justify-content: center; display: flex; align-items: center; text-decoration: none;">
             <span style="color: #FFF3F3; font-size: 14px; font-family: Roboto; font-weight: 400; 
-                 line-height: 16px; letter-spacing: 0.40px;">
+         line-height: 16px; letter-spacing: 0.40px;">
+                Choose Photo
+            </span>
+        </div>
+
+        <a href="logout.php" style="width: 104px; height: 43px; left: 318px; top: 159px; position: absolute; background: #eb4034; border-radius: 12px; 
+           text-align: center; justify-content: center; display: flex; align-items: center; text-decoration: none;">
+            <span style="color: #FFF3F3; font-size: 14px; font-family: Roboto; font-weight: 400; 
+         line-height: 16px; letter-spacing: 0.40px;">
                 LogOut
             </span>
         </a>
@@ -71,10 +94,18 @@ if ($channelID) {
             Upload
         </a>
 
+        <?php if ($isAdmin): ?>
+            <a href="addAdmin.php" style="display: inline-block; width: 104px; height: 43px; left: 959px; top: 159px; position: absolute; 
+          background: #795757; border-radius: 12px; text-align: center; line-height: 43px; color: white; 
+          text-decoration: none; font-family: Inter; font-size: 14px;">
+                Add Admin
+            </a>
+        <?php endif; ?>
+
 
 
         <a href="homepage.php" data-layer="Youtube-Logo" class="YoutubeLogo"
-            style="width: 204px; height: 45px; left: 43px; top: 42px; position: absolute; overflow: hidden">
+            style="width: 204px; height: 45px; left: 25 3px; top: 42px; position: absolute; overflow: hidden">
             <div data-svg-wrapper data-layer="Vector" class="Vector" style="left: 0px; top: 0px; position: absolute">
                 <svg width="65" height="45" viewBox="0 0 65 45" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
@@ -144,148 +175,70 @@ if ($channelID) {
                 </svg>
             </div>
         </a>
-        <div data-layer="Rectangle 11" class="Rectangle11"
-            style="width: 999px; height: 494px; left: 257px; top: 724px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
-        </div>
-        <div data-layer="Rectangle 15" class="Rectangle15"
-            style="width: 999px; height: 369px; left: 257px; top: 788px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
-        </div>
-        <div data-layer="Liked Video" class="LikedVideo"
-            style="width: 165px; height: 28px; left: 276px; top: 746px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Liked Video</div>
-        <div data-layer="Konten 10" class="Konten10"
-            style="width: 239px; height: 135px; left: 315px; top: 806px; position: absolute; background: #308120; border-radius: 20px">
-        </div>
-        <div data-layer="Konten8" class="Konten8"
-            style="width: 239px; height: 135px; left: 628px; top: 806px; position: absolute; background: #37B8EF; border-radius: 20px">
-        </div>
-        <div data-layer="Konten9" class="Konten9"
-            style="width: 239px; height: 135px; left: 941px; top: 806px; position: absolute; background: #AD45EA; border-radius: 20px">
-        </div>
-        <div data-layer="User1" class="User1"
-            style="width: 95.27px; height: 21.17px; left: 348.51px; top: 956.07px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 10px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            User1</div>
-        <div data-layer="50K Views" class="KViews"
-            style="width: 95.27px; height: 21.17px; left: 348.51px; top: 970.44px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 10px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            50K Views</div>
-        <div data-layer="8 Tahun yang lalu" class="TahunYangLalu"
-            style="width: 95.27px; height: 21.17px; left: 417.32px; top: 970.44px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 10px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            8 Tahun yang lalu</div>
-        <div data-svg-wrapper data-layer="User1" class="User1" style="left: 316px; top: 947px; position: absolute">
-            <image id="user1" width="23" height="23" preserveAspectRatio="none" src="Assets/User1.png"></image>
 
-        </div>
-        <div data-layer="KONTEN 1 (Ini Ceritanya JUDUL)" class="Konten1IniCeritanyaJudul"
-            style="width: 203.40px; height: 12.10px; left: 348.51px; top: 947.76px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 12px; font-family: Roboto Slab; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            KONTEN 1 (Ini Ceritanya JUDUL)</div>
-        <div data-svg-wrapper data-layer="Rectangle 5" class="Rectangle5"
-            style="left: 480px; top: 906px; position: absolute">
-            <svg width="52" height="25" viewBox="0 0 52 25" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="51.4161" height="24.9519" rx="12.476" fill="black" />
-            </svg>
-        </div>
-        <div data-layer="20.04" class="04"
-            style="width: 31px; height: 14.37px; left: 489.65px; top: 911.20px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: white; font-size: 10px; font-family: Roboto; font-weight: 400; word-wrap: break-word">
-            20.04</div>
-        <div data-svg-wrapper data-layer="Rectangle 5" class="Rectangle5"
-            style="left: 795px; top: 906px; position: absolute">
-            <svg width="52" height="25" viewBox="0 0 52 25" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="51.4161" height="24.9519" rx="12.476" fill="black" />
-            </svg>
-        </div>
-        <div data-layer="20.04" class="04"
-            style="width: 31px; height: 14.37px; left: 805.11px; top: 911.20px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: white; font-size: 10px; font-family: Roboto; font-weight: 400; word-wrap: break-word">
-            20.04</div>
-        <div data-svg-wrapper data-layer="Rectangle 5" class="Rectangle5"
-            style="left: 1111px; top: 906px; position: absolute">
-            <svg width="52" height="25" viewBox="0 0 52 25" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="51.4161" height="24.9519" rx="12.476" fill="black" />
-            </svg>
-        </div>
-        <div data-layer="20.04" class="04"
-            style="width: 31px; height: 14.37px; left: 1121.11px; top: 911.20px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: white; font-size: 10px; font-family: Roboto; font-weight: 400; word-wrap: break-word">
-            20.04</div>
-        <div data-layer="User1" class="User1"
-            style="width: 97px; height: 24px; left: 974px; top: 960px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 10px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            User1</div>
-        <div data-layer="50K Views" class="KViews"
-            style="width: 97px; height: 25px; left: 974px; top: 976px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 10px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            50K Views</div>
-        <div data-layer="8 Tahun yang lalu" class="TahunYangLalu"
-            style="width: 97px; height: 25px; left: 1044px; top: 976px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 10px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            8 Tahun yang lalu</div>
-        <div data-svg-wrapper data-layer="User1" class="User1" style="left: 941px; top: 949px; position: absolute">
-            <image id="user1" width="23" height="23" preserveAspectRatio="none" src="Assets/User1.png"></image>
-        </div>
-        <div data-layer="KONTEN 3 (Ini Ceritanya JUDUL)" class="Konten3IniCeritanyaJudul"
-            style="width: 207px; height: 14px; left: 974px; top: 950px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 12px; font-family: Roboto Slab; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            KONTEN 3 (Ini Ceritanya JUDUL)</div>
-        <div data-layer="User1" class="User1"
-            style="width: 97px; height: 24px; left: 664px; top: 959px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 10px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            User1</div>
-        <div data-layer="50K Views" class="KViews"
-            style="width: 97px; height: 25px; left: 664px; top: 975px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 10px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            50K Views</div>
-        <div data-layer="8 Tahun yang lalu" class="TahunYangLalu"
-            style="width: 97px; height: 25px; left: 734px; top: 975px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 10px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            8 Tahun yang lalu</div>
-        <div data-svg-wrapper data-layer="User1" class="User1" style="left: 631px; top: 948px; position: absolute">
-            <image id="user1" width="23" height="23" preserveAspectRatio="none" src="Assets/User1.png"></image>
 
-        </div>
-        <div data-layer="KONTEN 2 (Ini Ceritanya JUDUL)" class="Konten2IniCeritanyaJudul"
-            style="width: 207px; height: 14px; left: 664px; top: 949px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 10px; font-family: Roboto Slab; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            KONTEN 2 (Ini Ceritanya JUDUL)</div>
+
         <div data-layer="Rectangle 10" class="Rectangle10"
-            style="width: 999px; height: 282px; left: 257px; top: 375px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
+            style="width: 999px; height: 482px; left: 257px; top: 475px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
         </div>
-        <div data-layer="Rectangle 14" class="Rectangle14"
-            style="width: 999px; height: 210px; left: 257px; top: 447px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
-        </div>
-        <div data-layer="Subscripton" class="Subscripton"
-            style="width: 212px; height: 28px; left: 281px; top: 400px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Subscripton</div>
-        <div data-layer="User 1" class="User1"
-            style="width: 126px; height: 28px; left: 276px; top: 586px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            User 1</div>
-        <div data-layer="User 2" class="User2"
-            style="width: 126px; height: 28px; left: 443px; top: 586px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            User 2</div>
-        <div data-layer="User 3" class="User3"
-            style="width: 126px; height: 28px; left: 610px; top: 589px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 22px; letter-spacing: 0.40px; word-wrap: break-word">
-            User 3</div>
-        <div data-layer="User 4" class="User4"
-            style="width: 126px; height: 28px; left: 777px; top: 594px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 22px; letter-spacing: 0.40px; word-wrap: break-word">
-            User 4</div>
-        <div data-layer="User 5" class="User5"
-            style="width: 126px; height: 28px; left: 944px; top: 589px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 22px; letter-spacing: 0.40px; word-wrap: break-word">
-            User 5</div>
-        <div data-layer="User 6" class="User6"
-            style="width: 126px; height: 28px; left: 1111px; top: 589px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            User 6</div>
-        <img data-layer="User1" class="User1"
-            style="width: 100px; height: 100px; left: 289px; top: 465px; position: absolute; border-radius: 200px"
-            src="Assets/User1.png">
-        <img data-layer="User2" class="User2"
-            style="width: 100px; height: 100px; left: 456px; top: 465px; position: absolute; border-radius: 200px"
-            src="Assets/User2.png">
-        <img data-layer="User3" class="User3"
-            style="width: 100px; height: 100px; left: 623px; top: 465px; position: absolute; border-radius: 200px"
-            src="Assets/User3.png">
 
-        <img data-layer="User4" class="User4"
-            style="width: 100px; height: 100px; left: 790px; top: 465px; position: absolute; border-radius: 200px"
-            src="Assets/User4.png">
+        <div data-layer="Deskripsi" class="Deskripsi"
+            style="width: 212px; height: 28px; left: 281px; top: 500px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
+            Deskripsi</div>
 
-        <img data-layer="User5" class="User5"
-            style="width: 100px; height: 100px; left: 957px; top: 465px; position: absolute; border-radius: 200px"
-            src="Assets/User5.png">
+        <div data-layer="ChannelName" class="ChannelName"
+            style="width: 212px; height: 28px; left: 481px; top: 255px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
+            Channel Name </div>
 
-        <img data-layer="User6" class="User6"
-            style="width: 100px; height: 100px; left: 1124px; top: 465px; position: absolute; border-radius: 200px"
-            src="Assets/User6.png">
+        <div data-layer="Email" class="Email"
+            style="width: 212px; height: 28px; left: 481px; top: 320px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
+            Email </div>
+
+
+        <form method="POST" action="proses_edit_channel.php" enctype="multipart/form-data">
+            <!-- Tombol pilih file -->
+            <label for="foto" style="width: 104px; height: 43px; left: 318px; top: 370px; position: absolute; background: #795757; 
+    border-radius: 12px; text-align: center; justify-content: center; display: flex; align-items: center; 
+    text-decoration: none; cursor: pointer;">
+                <span style="color: #FFF3F3; font-size: 14px; font-family: Roboto; font-weight: 400; 
+     line-height: 16px; letter-spacing: 0.40px;">Choose Photo</span>
+                <input type="file" id="foto" name="foto" accept="image/*" style="display: none;"
+                    onchange="previewFoto(event)">
+            </label>
+            <input type="hidden" name="channelID" value="<?= htmlspecialchars($channelID) ?>">
+
+            <!-- Field username -->
+            <input type="text" name="username" value="<?= htmlspecialchars($usernameLama) ?>" style="width: 537px; height: 60px; left: 656px; top: 237px; position: absolute; opacity: 0.9; 
+        background: #472323; border-radius: 26px; color: white; font-size: 18px; padding-left: 20px; border: none;" />
+
+            <!-- Field email readonly -->
+            <input type="email" name="email" value="<?= htmlspecialchars($emailLama) ?>" readonly style="width: 537px; height: 60px; left: 656px; top: 307px; position: absolute; opacity: 0.9; 
+        background: #472323; border-radius: 26px; color: white; font-size: 18px; padding-left: 20px; border: none;" />
+
+            <!-- Tombol submit -->
+            <button type="submit" name="update_channel" style="display: inline-block; width: 104px; height: 43px; left: 1109px; top: 970px; position: absolute; 
+          background: #795757; border-radius: 12px; text-align: center; line-height: 43px; color: white; 
+          text-decoration: none; font-family: Inter; font-size: 14px;">
+                Save
+            </button>
+            <textarea name="deskripsi"
+                style="width: 960px; height: 370px; left: 257px; top: 547px; position: absolute; opacity: 0.9; 
+    background:rgb(119, 94, 94); border-radius: 26px; color: white; font-size: 18px; padding: 20px; border: none; resize: none;">
+<?= htmlspecialchars($deskripsiLama) ?>
+</textarea>
+
+        </form>
+
     </div>
-
+    <script>
+        function previewFoto(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const preview = document.getElementById('previewFoto');
+                preview.src = URL.createObjectURL(file);
+            }
+        }
+    </script>
 </body>
 
 </html>

@@ -1,8 +1,9 @@
 <?php
 require_once 'testsql.php';
+session_start();
 
 $idChannel = $_POST['idChannel'] ?? null;
-$userId = 2; // Simulasi user login
+$userId = $_SESSION['uid'];; // Simulasi user login
 
 if (!$idChannel) {
     echo json_encode(['success' => false, 'message' => 'ID channel tidak valid']);

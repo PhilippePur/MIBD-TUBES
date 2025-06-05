@@ -1,17 +1,65 @@
 <?php
 require_once 'testsql.php';
+session_start();
 
+// --- Bagian Penanganan Penghapusan Komentar (Soft Delete) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['idKomen'])) {
+    $idKomen = $_POST['idKomen'];
+
+    if (!filter_var($idKomen, FILTER_VALIDATE_INT)) {
+        die("ID Komentar tidak valid atau kosong.");
+    }
+
+    $sqlUpdate = "UPDATE Komen SET isActive = 0 WHERE idKomen = ?";
+    $paramsUpdate = [$idKomen];
+
+    $stmtUpdate = sqlsrv_query($conn, $sqlUpdate, $paramsUpdate);
+
+    if ($stmtUpdate === false) {
+        die("Error saat mengubah status komentar: " . print_r(sqlsrv_errors(), true));
+    } else {
+        // Tetap berada di halaman dengan query string yang sama
+        header("Location: KomenFilter.php" . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : ''));
+        exit();
+    }
+}
+
+// --- Bagian Filter dan Pengambilan Data Komentar ---
 $keyword = $_GET['keyword'] ?? '';
 $date = $_GET['date'] ?? '';
 $channelID = $_GET['channel_id'] ?? '';
+$videoId = $_GET['id'] ?? ''; // ID video dari dashboard.php
 
-// Gunakan JOIN untuk ambil channelID dari tabel Videos
+if (!empty($videoId) && filter_var($videoId, FILTER_VALIDATE_INT)) {
+    $sqlVideo = "SELECT title AS videoTitle, thumbnail, uploaded_at FROM Videos WHERE id = ?";
+    $stmtVideo = sqlsrv_query($conn, $sqlVideo, [$videoId]);
+
+    if ($stmtVideo && $videoRow = sqlsrv_fetch_array($stmtVideo, SQLSRV_FETCH_ASSOC)) {
+        $videoTitle = $videoRow['videoTitle'];
+        $videoThumb = $videoRow['thumbnail'];
+        $videoDate = $videoRow['uploaded_at']->format('F d, Y');
+        $totalComments = getComments($videoId);
+    } else {
+        // Video tidak ditemukan
+        $videoTitle = 'Judul tidak ditemukan';
+        $videoThumb = 'Assets/default-thumb.jpg';
+        $videoDate = '';
+        $totalComments = 0;
+    }
+}
+
 $sql = "
-SELECT K.*, V.idChannel
+SELECT
+    K.idKomen,
+    K.komen,
+    K.tanggal,
+    U.Username AS userUsername,
+    U.fotoProfil AS userFotoProfil
 FROM Komen K
-JOIN Videos V ON K.idVideo = V.id
-WHERE 1=1
+JOIN Users U ON K.idUser = U.Id
+WHERE K.isActive = 1
 ";
+
 $params = [];
 
 if (!empty($keyword)) {
@@ -24,39 +72,266 @@ if (!empty($date)) {
     $params[] = $date;
 }
 
-if (!empty($channelID)) {
-    $sql .= " AND V.idChannel = ?";
-    $params[] = $channelID;
+if (!empty($videoId)) {
+    $sql .= " AND K.idVideo = ?";
+    $params[] = $videoId;
 }
+
+$sql .= " ORDER BY K.tanggal DESC";
 
 $stmt = sqlsrv_query($conn, $sql, $params);
 
 if ($stmt === false) {
-    die(print_r(sqlsrv_errors(), true));
+    die("Error saat mengambil komentar: " . print_r(sqlsrv_errors(), true));
 }
 
-while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-    echo "<div style='margin-bottom:10px; padding:10px; border:1px solid #ccc;'>";
-    echo "<strong>Channel ID:</strong> " . htmlspecialchars($row['idChannel']) . "<br>";
-    echo "<strong>Waktu:</strong> " . $row['tanggal']->format('Y-m-d H:i') . "<br>";
-    echo "<strong>Komentar:</strong> " . htmlspecialchars($row['komen']) . "<br>";
-    echo "</div>";
-}
-?>
 
+function getComments($videoId)
+{
+    require 'testsql.php';
+    $sql = "SELECT COUNT(*) AS total_comments FROM Komen WHERE idVideo = ?";
+    $stmt = sqlsrv_query($conn, $sql, [$videoId]);
+    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    sqlsrv_close($conn);
+
+    return $row['total_comments'] ?? 0;
+}
+
+$offset = $totalComments * 250;
+
+    ?>
 
 <!DOCTYPE html>
 <html>
 
 <head>
     <title>Filter Komen</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .KomenFilter {
+            width: 1512px;
+            min-height: <?= 1000 + $offset ?>px  ;
+            /* Gunakan min-height agar bisa memanjang */
+            position: relative;
+            background: white;
+            overflow: hidden;
+            padding-bottom: 50px;
+            /* Ruang di bawah untuk konten dinamis */
+        }
+
+        .YoutubeLogo {
+            width: 381px;
+            height: 84px;
+            left: 36px;
+            top: 77px;
+            position: absolute;
+            overflow: hidden
+        }
+
+        .Line5 {
+            width: 931px;
+            height: 0px;
+            left: 397px;
+            top: 229px;
+            position: absolute;
+            transform: rotate(90deg);
+            transform-origin: top left;
+            outline: 1px black solid;
+            outline-offset: -0.50px
+        }
+
+        .Line6 {
+            width: 1512px;
+            height: 0px;
+            left: 0px;
+            top: 229px;
+            position: absolute;
+            outline: 1px black solid;
+            outline-offset: -0.50px
+        }
+
+        .Rectangle27 {
+            width: 320px;
+            height: 165px;
+            left: 36px;
+            top: 274px;
+            position: absolute;
+            background: #E179CF;
+            border-radius: 20px
+        }
+
+        /* Style untuk konten statis lainnya di sidebar kiri */
+        .LoremIpsumDeskripsi {
+            width: 126px;
+            height: 28px;
+            left: 47px;
+            top: 530px;
+            position: absolute;
+            justify-content: center;
+            display: flex;
+            flex-direction: column;
+            color: black;
+            font-size: 20px;
+            font-family: Roboto;
+            font-weight: 400;
+            line-height: 16px;
+            letter-spacing: 0.40px;
+            word-wrap: break-word
+        }
+
+        .jumlahKomen {
+            width: 402px;
+            left: 47px;
+            top: 530px;
+            position: absolute;
+            justify-content: center;
+            display: flex;
+            flex-direction: column;
+            color: black;
+            font-size: 20px;
+            font-family: Roboto Slab;
+            font-weight: 700;
+            line-height: 16px;
+            letter-spacing: 0.40px;
+            word-wrap: break-word
+        }
+
+
+        .Konten1IniCeritanyaJudul {
+            width: 402px;
+            left: 47px;
+            top: 469px;
+            position: absolute;
+            justify-content: center;
+            display: flex;
+            flex-direction: column;
+            color: black;
+            font-size: 20px;
+            font-family: Roboto Slab;
+            font-weight: 700;
+            line-height: 16px;
+            letter-spacing: 0.40px;
+            word-wrap: break-word
+        }
+
+        .May242025 {
+            width: 126px;
+            height: 28px;
+            left: 47px;
+            top: 492px;
+            position: absolute;
+            justify-content: center;
+            display: flex;
+            flex-direction: column;
+            color: black;
+            font-size: 20px;
+            font-family: Roboto;
+            font-weight: 400;
+            line-height: 16px;
+            letter-spacing: 0.40px;
+            word-wrap: break-word
+        }
+
+        .Mainprofile {
+            width: 120px;
+            height: 120px;
+            left: 1308px;
+            top: 58px;
+            position: absolute;
+            border-radius: 200px
+        }
+
+        /* Gaya dasar untuk card komentar dinamis */
+        .comment-card {
+            width: 988px;
+            height: 155px;
+            background: #D9D9D9;
+            border-radius: 35px;
+            position: absolute;
+            box-sizing: border-box;
+            padding: 20px;
+            left: 463px;
+            /* Posisi X komentar */
+            /* top akan diatur dinamis oleh PHP */
+        }
+
+        .comment-card .User-icon {
+            position: absolute;
+            left: 22px;
+            top: 19px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .comment-card .Comment-User {
+            position: absolute;
+            left: 93px;
+            top: 29px;
+            color: black;
+            font-size: 20px;
+            font-family: Roboto;
+            font-weight: 400;
+            line-height: 16px;
+            letter-spacing: 0.40px;
+            word-wrap: break-word;
+        }
+
+        .comment-card .Comment-Date {
+            position: absolute;
+            left: 93px;
+            top: 50px;
+            color: black;
+            font-size: 20px;
+            font-family: Roboto;
+            font-weight: 400;
+            line-height: 16px;
+            letter-spacing: 0.40px;
+            word-wrap: break-word;
+        }
+
+        .comment-card .Comment-Text {
+            position: absolute;
+            width: 943px;
+            height: 66px;
+            left: 22px;
+            top: 82px;
+            color: black;
+            font-size: 16px;
+            font-family: Roboto;
+            font-weight: 400;
+            line-height: 1.4;
+            letter-spacing: 0.40px;
+            word-wrap: break-word;
+            overflow: hidden;
+            /* Hide teks panjang */
+            text-overflow: ellipsis;
+        }
+
+        .comment-card .Remove-button-container {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+        }
+
+        .Remove-button-container button {
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+        }
+    </style>
 </head>
 
 <body>
-    <div data-layer="Komen Filter" class="KomenFilter"
-        style="width: 1512px; height: 1160px; position: relative; background: white; overflow: hidden">
-        <a href="homepage.php" data-layer="Youtube-Logo" class="YoutubeLogo"
-            style="width: 381px; height: 84px; left: 36px; top: 77px; position: absolute; overflow: hidden">
+    <div data-layer="Komen Filter" class="KomenFilter">
+        <a href="homepage.php" data-layer="Youtube-Logo" class="YoutubeLogo">
             <div data-svg-wrapper data-layer="Vector" class="Vector" style="left: 0px; top: 0px; position: absolute">
                 <svg width="121" height="84" viewBox="0 0 121 84" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
@@ -132,151 +407,68 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                 <path d="M1.96631 1.42566H3.20105" stroke="white" stroke-width="2" stroke-linecap="round" />
             </svg>
         </div>
-        <div data-layer="Line 5" class="Line5"
-            style="width: 931px; height: 0px; left: 397px; top: 229px; position: absolute; transform: rotate(90deg); transform-origin: top left; outline: 1px black solid; outline-offset: -0.50px">
+        <div data-layer="Line 5" class="Line5"></div>
+        <div data-layer="Line 6" class="Line6"></div>
+        <div data-layer="Rectangle 27" class="Rectangle27"> <img src="<?= htmlspecialchars(string: $videoThumb) ?>"
+                alt="Thumbnail" style="width: 100%; height: 100%; border-radius: 20px;"></div>
+        <div data-layer="Judul" class="Konten1IniCeritanyaJudul"><?= htmlspecialchars($videoTitle) ?>
         </div>
-        <div data-layer="Line 6" class="Line6"
-            style="width: 1512px; height: 0px; left: 0px; top: 229px; position: absolute; outline: 1px black solid; outline-offset: -0.50px">
-        </div>
-        <div data-layer="Rectangle 27" class="Rectangle27"
-            style="width: 320px; height: 165px; left: 36px; top: 274px; position: absolute; background: #E179CF; border-radius: 20px">
-        </div>
-        <div data-layer="Lorem Ipsum (Deskripsi)" class="LoremIpsumDeskripsi"
-            style="width: 126px; height: 28px; left: 47px; top: 530px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Lorem Ipsum (Deskripsi)</div>
-        <div data-layer="KONTEN 1 (Ini Ceritanya JUDUL)" class="Konten1IniCeritanyaJudul"
-            style="width: 402px; left: 47px; top: 469px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto Slab; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            KONTEN 1 (Ini Ceritanya JUDUL)</div>
         <div data-svg-wrapper data-layer="Rectangle 31" class="Rectangle31"
             style="left: 508px; top: 336px; position: absolute">
             <svg width="1" height="1" viewBox="0 0 1 1" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <rect width="1" height="1" fill="#D9D9D9" />
             </svg>
         </div>
-        <div data-layer="Rectangle 32" class="Rectangle32"
-            style="width: 988px; height: 155px; left: 463px; top: 284px; position: absolute; background: #D9D9D9; border-radius: 35px">
-        </div>
-        <div data-layer="Rectangle 33" class="Rectangle33"
-            style="width: 988px; height: 155px; left: 463px; top: 452px; position: absolute; background: #D9D9D9; border-radius: 35px">
-        </div>
-        <div data-layer="Rectangle 34" class="Rectangle34"
-            style="width: 988px; height: 155px; left: 463px; top: 617px; position: absolute; background: #D9D9D9; border-radius: 35px">
-        </div>
-        <div data-layer="Rectangle 35" class="Rectangle35"
-            style="width: 988px; height: 155px; left: 463px; top: 788px; position: absolute; background: #D9D9D9; border-radius: 35px">
-        </div>
-        <div data-layer="Rectangle 36" class="Rectangle36"
-            style="width: 988px; height: 155px; left: 463px; top: 956px; position: absolute; background: #D9D9D9; border-radius: 35px">
-        </div>
-        <div data-layer="Lorem ipsum dolor sit amet, consectetur adipiscing elit. In commodo massa sed tempus porta. Aenean quis nibh sem. Phasellus sodales odio vitae felis finibus porta. Mauris vel ante vitae dolor dapibus varius. Ut imperdiet egestas molestie. Duis ullamcorper faucibus lacus, elementum placerat massa lacinia in. Praesent sed placerat diam. Etiam aliquet nibh id posuere imperdiet. Donec vel imperdiet orci. Etiam sit amet tellus placerat, lobortis nunc quis, pulvinar metus."
-            class="LoremIpsumDolorSitAmetConsecteturAdipiscingElitInCommodoMassaSedTempusPortaAeneanQuisNibhSemPhasellusSodalesOdioVitaeFelisFinibusPortaMaurisVelAnteVitaeDolorDapibusVariusUtImperdietEgestasMolestieDuisUllamcorperFaucibusLacusElementumPlaceratMassaLaciniaInPraesentSedPlaceratDiamEtiamAliquetNibhIdPosuereImperdietDonecVelImperdietOrciEtiamSitAmetTellusPlaceratLobortisNuncQuisPulvinarMetus"
-            style="width: 943px; height: 66px; left: 483px; top: 366px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. In commodo massa sed tempus porta. Aenean quis nibh
-            sem. Phasellus sodales odio vitae felis finibus porta. Mauris vel ante vitae dolor dapibus varius. Ut
-            imperdiet egestas molestie. Duis ullamcorper faucibus lacus, elementum placerat massa lacinia in. Praesent
-            sed placerat diam. Etiam aliquet nibh id posuere imperdiet. Donec vel imperdiet orci. Etiam sit amet tellus
-            placerat, lobortis nunc quis, pulvinar metus.<br /></div>
-        <div data-layer="Lorem ipsum dolor sit amet, consectetur adipiscing elit. In commodo massa sed tempus porta. Aenean quis nibh sem. Phasellus sodales odio vitae felis finibus porta. Mauris vel ante vitae dolor dapibus varius. Ut imperdiet egestas molestie. Duis ullamcorper faucibus lacus, elementum placerat massa lacinia in. Praesent sed placerat diam. Etiam aliquet nibh id posuere imperdiet. Donec vel imperdiet orci. Etiam sit amet tellus placerat, lobortis nunc quis, pulvinar metus."
-            class="LoremIpsumDolorSitAmetConsecteturAdipiscingElitInCommodoMassaSedTempusPortaAeneanQuisNibhSemPhasellusSodalesOdioVitaeFelisFinibusPortaMaurisVelAnteVitaeDolorDapibusVariusUtImperdietEgestasMolestieDuisUllamcorperFaucibusLacusElementumPlaceratMassaLaciniaInPraesentSedPlaceratDiamEtiamAliquetNibhIdPosuereImperdietDonecVelImperdietOrciEtiamSitAmetTellusPlaceratLobortisNuncQuisPulvinarMetus"
-            style="width: 943px; height: 66px; left: 485px; top: 526px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. In commodo massa sed tempus porta. Aenean quis nibh
-            sem. Phasellus sodales odio vitae felis finibus porta. Mauris vel ante vitae dolor dapibus varius. Ut
-            imperdiet egestas molestie. Duis ullamcorper faucibus lacus, elementum placerat massa lacinia in. Praesent
-            sed placerat diam. Etiam aliquet nibh id posuere imperdiet. Donec vel imperdiet orci. Etiam sit amet tellus
-            placerat, lobortis nunc quis, pulvinar metus.<br /></div>
-        <div data-layer="Lorem ipsum dolor sit amet, consectetur adipiscing elit. In commodo massa sed tempus porta. Aenean quis nibh sem. Phasellus sodales odio vitae felis finibus porta. Mauris vel ante vitae dolor dapibus varius. Ut imperdiet egestas molestie. Duis ullamcorper faucibus lacus, elementum placerat massa lacinia in. Praesent sed placerat diam. Etiam aliquet nibh id posuere imperdiet. Donec vel imperdiet orci. Etiam sit amet tellus placerat, lobortis nunc quis, pulvinar metus."
-            class="LoremIpsumDolorSitAmetConsecteturAdipiscingElitInCommodoMassaSedTempusPortaAeneanQuisNibhSemPhasellusSodalesOdioVitaeFelisFinibusPortaMaurisVelAnteVitaeDolorDapibusVariusUtImperdietEgestasMolestieDuisUllamcorperFaucibusLacusElementumPlaceratMassaLaciniaInPraesentSedPlaceratDiamEtiamAliquetNibhIdPosuereImperdietDonecVelImperdietOrciEtiamSitAmetTellusPlaceratLobortisNuncQuisPulvinarMetus"
-            style="width: 943px; height: 66px; left: 485px; top: 697px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. In commodo massa sed tempus porta. Aenean quis nibh
-            sem. Phasellus sodales odio vitae felis finibus porta. Mauris vel ante vitae dolor dapibus varius. Ut
-            imperdiet egestas molestie. Duis ullamcorper faucibus lacus, elementum placerat massa lacinia in. Praesent
-            sed placerat diam. Etiam aliquet nibh id posuere imperdiet. Donec vel imperdiet orci. Etiam sit amet tellus
-            placerat, lobortis nunc quis, pulvinar metus.<br /></div>
-        <div data-layer="Lorem ipsum dolor sit amet, consectetur adipiscing elit. In commodo massa sed tempus porta. Aenean quis nibh sem. Phasellus sodales odio vitae felis finibus porta. Mauris vel ante vitae dolor dapibus varius. Ut imperdiet egestas molestie. Duis ullamcorper faucibus lacus, elementum placerat massa lacinia in. Praesent sed placerat diam. Etiam aliquet nibh id posuere imperdiet. Donec vel imperdiet orci. Etiam sit amet tellus placerat, lobortis nunc quis, pulvinar metus."
-            class="LoremIpsumDolorSitAmetConsecteturAdipiscingElitInCommodoMassaSedTempusPortaAeneanQuisNibhSemPhasellusSodalesOdioVitaeFelisFinibusPortaMaurisVelAnteVitaeDolorDapibusVariusUtImperdietEgestasMolestieDuisUllamcorperFaucibusLacusElementumPlaceratMassaLaciniaInPraesentSedPlaceratDiamEtiamAliquetNibhIdPosuereImperdietDonecVelImperdietOrciEtiamSitAmetTellusPlaceratLobortisNuncQuisPulvinarMetus"
-            style="width: 943px; height: 66px; left: 485px; top: 868px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. In commodo massa sed tempus porta. Aenean quis nibh
-            sem. Phasellus sodales odio vitae felis finibus porta. Mauris vel ante vitae dolor dapibus varius. Ut
-            imperdiet egestas molestie. Duis ullamcorper faucibus lacus, elementum placerat massa lacinia in. Praesent
-            sed placerat diam. Etiam aliquet nibh id posuere imperdiet. Donec vel imperdiet orci. Etiam sit amet tellus
-            placerat, lobortis nunc quis, pulvinar metus.<br /></div>
-        <div data-layer="Lorem ipsum dolor sit amet, consectetur adipiscing elit. In commodo massa sed tempus porta. Aenean quis nibh sem. Phasellus sodales odio vitae felis finibus porta. Mauris vel ante vitae dolor dapibus varius. Ut imperdiet egestas molestie. Duis ullamcorper faucibus lacus, elementum placerat massa lacinia in. Praesent sed placerat diam. Etiam aliquet nibh id posuere imperdiet. Donec vel imperdiet orci. Etiam sit amet tellus placerat, lobortis nunc quis, pulvinar metus."
-            class="LoremIpsumDolorSitAmetConsecteturAdipiscingElitInCommodoMassaSedTempusPortaAeneanQuisNibhSemPhasellusSodalesOdioVitaeFelisFinibusPortaMaurisVelAnteVitaeDolorDapibusVariusUtImperdietEgestasMolestieDuisUllamcorperFaucibusLacusElementumPlaceratMassaLaciniaInPraesentSedPlaceratDiamEtiamAliquetNibhIdPosuereImperdietDonecVelImperdietOrciEtiamSitAmetTellusPlaceratLobortisNuncQuisPulvinarMetus"
-            style="width: 943px; height: 66px; left: 485px; top: 1039px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. In commodo massa sed tempus porta. Aenean quis nibh
-            sem. Phasellus sodales odio vitae felis finibus porta. Mauris vel ante vitae dolor dapibus varius. Ut
-            imperdiet egestas molestie. Duis ullamcorper faucibus lacus, elementum placerat massa lacinia in. Praesent
-            sed placerat diam. Etiam aliquet nibh id posuere imperdiet. Donec vel imperdiet orci. Etiam sit amet tellus
-            placerat, lobortis nunc quis, pulvinar metus.<br /></div>
-        <img data-layer="MainProfile" class="Mainprofile"
-            style="width: 120px; height: 120px; left: 1308px; top: 58px; position: absolute; border-radius: 200px"
-            src="Assets/MainProfile.jpg">
 
-        <div data-svg-wrapper data-layer="User2" class="User2" style="left: 485px; top: 303px; position: absolute">
-            <image id="user2" width="50" height="50" preserveAspectRatio="none" src="Assets/User2.png"></image>
-        </div>
-        <div data-svg-wrapper data-layer="User3" class="User3" style="left: 485px; top: 463px; position: absolute">
-            <image id="user3" width="50" height="50" preserveAspectRatio="none" src="Assets/User3.png"></image>
-        </div>
-        <div data-svg-wrapper data-layer="User4" class="User4" style="left: 485px; top: 629px; position: absolute">
-            <image id="user4" width="50" height="50" preserveAspectRatio="none" src="Assets/User4.png"></image>
-        </div>
-        <div data-svg-wrapper data-layer="User5" class="User5" style="left: 483px; top: 798px; position: absolute">
-            <image id="user5" width="50" height="50" preserveAspectRatio="none" src="Assets/User5.png"></image>
-        </div>
-        <div data-svg-wrapper data-layer="User6" class="User6" style="left: 485px; top: 974px; position: absolute">
-            <image id="user6" width="50" height="50" preserveAspectRatio="none" src="Assets/User6.png"></image>
-        </div>
-        <div data-layer="User" class="User"
-            style="width: 126px; height: 28px; left: 556px; top: 313px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            User</div>
-        <div data-layer="User" class="User"
-            style="width: 126px; height: 28px; left: 556px; top: 474px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            User</div>
-        <div data-layer="User" class="User"
-            style="width: 126px; height: 28px; left: 556px; top: 640px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            User</div>
-        <div data-layer="User" class="User"
-            style="width: 126px; height: 28px; left: 556px; top: 809px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            User</div>
-        <div data-layer="User" class="User"
-            style="width: 126px; height: 28px; left: 556px; top: 985px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            User</div>
-        <div data-layer="May, 24 2025" class="May242025"
-            style="width: 126px; height: 28px; left: 47px; top: 492px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            May, 24 2025</div>
-        <div data-svg-wrapper data-layer="Remove" class="Remove" style="left: 1392px; top: 294px; position: absolute">
-            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="16.5" stroke="#33363F" stroke-width="2" />
-                <path d="M13.75 22H30.25" stroke="#33363F" stroke-width="2" />
-            </svg>
-        </div>
-        <div data-svg-wrapper data-layer="Remove" class="Remove" style="left: 1392px; top: 464px; position: absolute">
-            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="16.5" stroke="#33363F" stroke-width="2" />
-                <path d="M13.75 22H30.25" stroke="#33363F" stroke-width="2" />
-            </svg>
-        </div>
-        <div data-svg-wrapper data-layer="Remove" class="Remove" style="left: 1392px; top: 634px; position: absolute">
-            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="16.5" stroke="#33363F" stroke-width="2" />
-                <path d="M13.75 22H30.25" stroke="#33363F" stroke-width="2" />
-            </svg>
-        </div>
-        <div data-svg-wrapper data-layer="Remove" class="Remove" style="left: 1392px; top: 804px; position: absolute">
-            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="16.5" stroke="#33363F" stroke-width="2" />
-                <path d="M13.75 22H30.25" stroke="#33363F" stroke-width="2" />
-            </svg>
-        </div>
-        <div data-svg-wrapper data-layer="Remove" class="Remove" style="left: 1392px; top: 974px; position: absolute">
-            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="16.5" stroke="#33363F" stroke-width="2" />
-                <path d="M13.75 22H30.25" stroke="#33363F" stroke-width="2" />
-            </svg>
-        </div>
+        <div data-layer="TanggalUpload" class="May242025"><?= htmlspecialchars($videoDate) ?></div>
+
+        <div data-layer="jumlahKomen" class="jumlahKomen"> Total Komen : <?= htmlspecialchars($totalComments) ?></div>
+        <?php
+        $currentTopPosition = 284;
+        $verticalSpacing = 155 + 17;
+
+        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $idKomen = $row['idKomen'];
+            $komenText = $row['komen'];
+            $commentDate = $row['tanggal']->format('H:i  F d, Y');
+            $userName = $row['userUsername'] ?? 'Unknown User';
+            $userProfilePic = $row['userFotoProfil'] ?? 'Assets/NoProfile.jpg';
+            ?>
+            <div class="comment-card" style="top: <?php echo $currentTopPosition; ?>px;">
+
+                <img class="User-icon" src="<?php echo htmlspecialchars($userProfilePic); ?>" alt="User Profile">
+
+                <div class="Comment-User">
+                    <?php echo htmlspecialchars($userName); ?>
+                </div>
+
+                <div class="Comment-Date">
+                    <?php echo htmlspecialchars($commentDate); ?>
+                </div>
+
+                <div class="Comment-Text">
+                    <?php echo htmlspecialchars($komenText); ?>
+                </div>
+
+                <div class="Remove-button-container">
+                    <form action="KomenFilter.php" method="POST"
+                        onsubmit="return confirm('Apakah Anda yakin ingin menghapus komentar ini?');">
+                        <input type="hidden" name="idKomen" value="<?php echo htmlspecialchars($idKomen); ?>">
+                        <button type="submit">
+                            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="22" cy="22" r="16.5" stroke="#33363F" stroke-width="2" />
+                                <path d="M13.75 22H30.25" stroke="#33363F" stroke-width="2" />
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <?php
+            $currentTopPosition += $verticalSpacing;
+        }
+        ?>
+
     </div>
-
 </body>
 
 </html>

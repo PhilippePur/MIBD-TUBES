@@ -1,22 +1,48 @@
 <?php
 require_once 'testsql.php';
+session_start();
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $id = $_POST['id'];
-    $title = $_POST['title'];
-    $description = $_POST['description'];
-
-    $sql = "UPDATE Videos SET title = ?, description = ? WHERE id = ?";
-    $params = array($title, $description, $id);
-
-    $stmt = sqlsrv_query($conn, $sql, params: $params);
-
-    if ($stmt === false) {
-        echo "<script>alert('Gagal mengupdate data'); window.location.href='editContent.php?id=$id';</script>";
-    } else {
-        echo "<script>alert('Konten berhasil diperbarui'); window.location.href='uploadList.php';</script>";
-    }
+// Validasi login
+if (!isset($_SESSION['uid'])) {
+    echo "<script>alert('Silakan login terlebih dahulu'); window.location.href='login.php';</script>";
+    exit;
 }
+
+$uid = $_SESSION['uid'];
+$videoId = isset($_GET['id']) ? $_GET['id'] : null;
+
+// Ambil data video
+$video = null;
+if ($videoId) {
+    $sql = "SELECT id, title, description, thumbnail, path FROM Videos WHERE id = ?";
+    $stmt = sqlsrv_query($conn, $sql, array($videoId));
+
+    if ($stmt !== false && $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $video = $row;
+    } else {
+        echo "<script>alert('Video tidak ditemukan'); window.location.href='homePage.php';</script>";
+        exit;
+    }
+} else {
+    echo "<script>alert('ID video tidak ditemukan'); window.location.href='dashboard.php';</script>";
+    exit;
+}
+$judulVideo = $row['title'];
+$deskripsiVideo = $row['description'];
+$thumbnailVideo = $row['thumbnail'];
+$pathVideo = $row['path'];
+
+// Ambil informasi channel dan email user yang sedang login
+$sqlChannel = "SELECT C.namaChannel, C.deskripsi, C.fotoProfil, U.Email, C.idChannel 
+               FROM Users U 
+               INNER JOIN [Admin] A ON A.UserID = U.Id 
+               INNER JOIN Channel C ON C.idChannel = A.ChannelID 
+               WHERE U.Id = ?";
+$stmtChannel = sqlsrv_query($conn, $sqlChannel, array($uid));
+
+$channelInfo = sqlsrv_fetch_array($stmtChannel, SQLSRV_FETCH_ASSOC);
+$fotoProfil = $channelInfo['fotoProfil'];
+$channelID = $channelInfo['idChannel'];
 ?>
 
 <!DOCTYPE html>
@@ -31,9 +57,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         style="width: 1512px; height: 1009px; position: relative; background: white; overflow: hidden">
         <div data-layer="Rectangle 8" class="Rectangle8"
             style="width: 1512px; height: 904px; left: 0px; top: 105px; position: absolute; background: #D9D9D9"></div>
-        <div data-layer="Rectangle 9" class="Rectangle9"
-            style="width: 537px; height: 77px; left: 198px; top: 160px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
-        </div>
+
         <a href="homepage.php" data-layer="Youtube-Logo" class="YoutubeLogo"
             style="width: 204px; height: 45px; left: 23px; top: 33px; position: absolute; overflow: hidden">
             <div data-svg-wrapper data-layer="Vector" class="Vector" style="left: 0px; top: 0px; position: absolute">
@@ -107,22 +131,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </a>
         <img data-layer="MainProfile" class="Mainprofile"
             style="width: 140px; height: 140px; left: 23px; top: 128px; position: absolute; border-radius: 200px"
-            src="Assets/MainProfile.jpg">
-        <div data-layer="Judul Konten" class="JudulKonten"
-            style="width: 490px; height: 39px; left: 227px; top: 179px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 64px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Judul Konten</div>
-        <div data-layer="Rectangle 10" class="Rectangle10"
-            style="width: 1172px; height: 322px; left: 199px; top: 260px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
-        </div>
+            src="<?= htmlspecialchars($fotoProfil) ?>">
+
+
         <div data-layer="Rectangle 11" class="Rectangle11"
             style="width: 1172px; height: 282px; left: 199px; top: 600px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
         </div>
-        <div data-layer="Rectangle 5" class="Rectangle5"
-            style="width: 166.18px; height: 68px; left: 1205px; top: 900px; position: absolute; background: #795757; border-radius: 23px">
-        </div>
-        <div data-layer="Update" class="Update"
-            style="width: 136.50px; height: 24.62px; left: 1220.43px; top: 922.28px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: #FFF3F3; font-size: 32px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Update</div>
+
         <div data-svg-wrapper data-layer="Vector 2" class="Vector2"
             style="left: 1259.83px; top: 935.17px; position: absolute">
             <svg width="4" height="3" viewBox="0 0 4 3" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -135,12 +150,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <path d="M1.41309 1.17236H2.58136" stroke="white" stroke-width="2" stroke-linecap="round" />
             </svg>
         </div>
-        <div data-layer="Rectangle 17" class="Rectangle17"
-            style="width: 163.56px; height: 68px; left: 1018px; top: 900px; position: absolute; background: #FF3636; border-radius: 23px">
-        </div>
-        <div data-layer="Arsipkan" class="Arsipkan"
-            style="width: 134.35px; height: 24.62px; left: 1032.02px; top: 922.28px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: #FFF3F3; font-size: 32px; font-family: Roboto; font-weight: 700; line-height: 20px; letter-spacing: 0.70px; word-wrap: break-word">
-            Arsipkan</div>
+
         <div data-layer="Deskripsi" class="Deskripsi"
             style="width: 165px; height: 28px; left: 237px; top: 283.63px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 32px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
             Deskripsi</div>
@@ -150,44 +160,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <div data-layer="Video" class="Video"
             style="width: 165px; height: 28px; left: 223px; top: 622px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 32px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
             Video</div>
-        <div data-svg-wrapper data-layer="edit-03" class="Edit03" style="left: 677px; top: 175px; position: absolute">
-            <svg width="43" height="43" viewBox="0 0 43 43" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                    d="M24.866 6.64193C26.965 4.54286 30.3683 4.54286 32.4674 6.64193L36.3581 10.5327C38.4572 12.6317 38.4572 16.035 36.3581 18.1341L17.3919 37.1003C17.0559 37.4363 16.6002 37.625 16.125 37.625H7.16667C6.17716 37.625 5.375 36.8229 5.375 35.8334V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.64193ZM29.9336 9.17573C29.2339 8.47604 28.0995 8.47604 27.3998 9.17573L25.8255 10.75L32.25 17.1746L33.8243 15.6003C34.524 14.9006 34.524 13.7662 33.8243 13.0665L29.9336 9.17573ZM29.7162 19.7084L23.2917 13.2838L8.95833 27.6172V34.0417H15.3829L29.7162 19.7084Z"
-                    fill="white" />
-            </svg>
-        </div>
-        <div data-svg-wrapper data-layer="edit-03" class="Edit03"
-            style="left: 388px; top: 283.63px; position: absolute">
-            <svg width="29" height="30" viewBox="0 0 29 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                    d="M16.7701 5.11228C18.1857 3.69663 20.4809 3.69662 21.8966 5.11228L24.5206 7.73626C25.9362 9.15191 25.9362 11.4471 24.5206 12.8628L11.7294 25.6539C11.5028 25.8805 11.1955 26.0079 10.875 26.0079H4.83333C4.16599 26.0079 3.625 25.4669 3.625 24.7995V18.7579C3.625 18.4374 3.75231 18.13 3.97891 17.9034L16.7701 5.11228ZM20.1878 6.82112C19.7159 6.34923 18.9508 6.34923 18.4789 6.82112L17.4172 7.88285L21.75 12.2157L22.8117 11.1539C23.2836 10.6821 23.2836 9.91698 22.8117 9.4451L20.1878 6.82112ZM20.0412 13.9245L15.7083 9.5917L6.04167 19.2584V23.5912H10.3745L20.0412 13.9245Z"
-                    fill="white" />
-            </svg>
-        </div>
-        <div data-svg-wrapper data-layer="edit-03" class="Edit03" style="left: 1306px; top: 820px; position: absolute">
-            <svg width="29" height="29" viewBox="0 0 29 29" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                    d="M16.7701 4.47946C18.1857 3.06381 20.4809 3.06381 21.8966 4.47946L24.5206 7.10345C25.9362 8.5191 25.9362 10.8143 24.5206 12.23L11.7294 25.0211C11.5028 25.2477 11.1955 25.375 10.875 25.375H4.83333C4.16599 25.375 3.625 24.8341 3.625 24.1667V18.125C3.625 17.8046 3.75231 17.4972 3.97891 17.2706L16.7701 4.47946ZM20.1878 6.1883C19.7159 5.71642 18.9508 5.71642 18.4789 6.1883L17.4172 7.25004L21.75 11.5829L22.8117 10.5211C23.2836 10.0492 23.2836 9.28417 22.8117 8.81229L20.1878 6.1883ZM20.0412 13.2917L15.7083 8.95888L6.04167 18.6255V22.9584H10.3745L20.0412 13.2917Z"
-                    fill="white" />
-            </svg>
-        </div>
-        <div data-layer="Lorem ipsum dolor sit amet, consectetur adipiscing elit. In commodo massa sed tempus porta. Aenean quis nibh sem. Phasellus sodales odio vitae felis finibus porta. Mauris vel ante vitae dolor dapibus varius. Ut imperdiet egestas molestie. Duis ullamcorper faucibus lacus, elementum placerat massa lacinia in. Praesent sed placerat diam. Etiam aliquet nibh id posuere imperdiet. Donec vel imperdiet orci. Etiam sit amet tellus placerat, lobortis nunc quis, pulvinar metus. Proin imperdiet eros ut lacus tempor vehicula. Morbi sagittis convallis quam vel aliquam. Lorem ipsum dolor sit amet, consectetur adipiscing elit. In et aliquam diam. Duis faucibus neque a magna ullamcorper, id faucibus nulla commodo. Proin posuere ante neque, aliquet fringilla quam fermentum at. In dictum, tellus dapibus viverra cursus, odio massa tincidunt lorem, a ultricies ligula tellus eget urna. Cras molestie fringilla libero, id volutpat metus convallis vel. Proin id risus arcu. Phasellus pharetra eu quam quis facilisis. Proin dignissim non diam vel vestibulum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Proin eget ultrices ipsum, non molestie enim. Nulla feugiat enim eu mattis rutrum. Sed aliquam odio et nibh auctor, a vehicula mauris cursus. Aliquam id magna commodo, condimentum elit mollis, vulputate neque."
-            class="LoremIpsumDolorSitAmetConsecteturAdipiscingElitInCommodoMassaSedTempusPortaAeneanQuisNibhSemPhasellusSodalesOdioVitaeFelisFinibusPortaMaurisVelAnteVitaeDolorDapibusVariusUtImperdietEgestasMolestieDuisUllamcorperFaucibusLacusElementumPlaceratMassaLaciniaInPraesentSedPlaceratDiamEtiamAliquetNibhIdPosuereImperdietDonecVelImperdietOrciEtiamSitAmetTellusPlaceratLobortisNuncQuisPulvinarMetusProinImperdietErosUtLacusTemporVehiculaMorbiSagittisConvallisQuamVelAliquamLoremIpsumDolorSitAmetConsecteturAdipiscingElitInEtAliquamDiamDuisFaucibusNequeAMagnaUllamcorperIdFaucibusNullaCommodoProinPosuereAnteNequeAliquetFringillaQuamFermentumAtInDictumTellusDapibusViverraCursusOdioMassaTinciduntLoremAUltriciesLigulaTellusEgetUrnaCrasMolestieFringillaLiberoIdVolutpatMetusConvallisVelProinIdRisusArcuPhasellusPharetraEuQuamQuisFacilisisProinDignissimNonDiamVelVestibulumPellentesqueHabitantMorbiTristiqueSenectusEtNetusEtMalesuadaFamesAcTurpisEgestasProinEgetUltricesIpsumNonMolestieEnimNullaFeugiatEnimEuMattisRutrumSedAliquamOdioEtNibhAuctorAVehiculaMaurisCursusAliquamIdMagnaCommodoCondimentumElitMollisVulputateNeque"
-            style="width: 1097px; height: 195px; left: 237px; top: 346.63px; position: absolute; color: black; font-size: 16px; font-family: Roboto; font-weight: 300; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. In commodo massa sed tempus porta. Aenean quis nibh
-            sem. Phasellus sodales odio vitae felis finibus porta. Mauris vel ante vitae dolor dapibus varius. Ut
-            imperdiet egestas molestie. Duis ullamcorper faucibus lacus, elementum placerat massa lacinia in. Praesent
-            sed placerat diam. Etiam aliquet nibh id posuere imperdiet. Donec vel imperdiet orci. Etiam sit amet tellus
-            placerat, lobortis nunc quis, pulvinar metus.<br /><br /><br />Proin imperdiet eros ut lacus tempor
-            vehicula. Morbi sagittis convallis quam vel aliquam. Lorem ipsum dolor sit amet, consectetur adipiscing
-            elit. In et aliquam diam. Duis faucibus neque a magna ullamcorper, id faucibus nulla commodo. Proin posuere
-            ante neque, aliquet fringilla quam fermentum at. In dictum, tellus dapibus viverra cursus, odio massa
-            tincidunt lorem, a ultricies ligula tellus eget urna. Cras molestie fringilla libero, id volutpat metus
-            convallis vel. Proin id risus arcu. Phasellus pharetra eu quam quis facilisis. Proin dignissim non diam vel
-            vestibulum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.
-            Proin eget ultrices ipsum, non molestie enim. Nulla feugiat enim eu mattis rutrum. Sed aliquam odio et nibh
-            auctor, a vehicula mauris cursus. Aliquam id magna commodo, condimentum elit mollis, vulputate neque.</div>
+
+
         <div data-layer="Line 3" class="Line3"
             style="width: 1173px; height: 0px; left: 198px; top: 323.63px; position: absolute; outline: 1px white solid; outline-offset: -0.50px">
         </div>
@@ -196,18 +170,91 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
         <div data-layer="Rectangle 15" class="Rectangle15"
             style="width: 330px; height: 176px; left: 969px; top: 673px; position: absolute; background: #D9D9D9"></div>
-        <div data-layer="Rectangle 16" class="Rectangle16"
-            style="width: 330px; height: 176px; left: 227px; top: 673px; position: absolute; background: #F44F4F"></div>
+
         <div data-layer="NamaFile" class="Namafile"
             style="left: 574px; top: 679px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: white; font-size: 32px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
             NamaFile</div>
         <div data-layer="Size" class="Size"
             style="left: 574px; top: 708px; position: absolute; opacity: 0.28; justify-content: center; display: flex; flex-direction: column; color: white; font-size: 14px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
             Size</div>
-        <img data-layer="MainProfile" class="Mainprofile"
-            style="width: 330px; height: 176px; left: 969px; top: 673px; position: absolute" src="Assets/Move.png">
-    </div>
 
+
+        <form action="proses_edit_video.php" method="POST" enctype="multipart/form-data" id="editForm">
+            <input type="hidden" name="id" value="<?= $video['id'] ?>">
+
+            <!-- Input video baru -->
+            <input type="file" name="video_path" id="videoInput" accept="video/*" style="display: none;">
+            <div class="Rectangle16"
+                style="width: 330px; height: 176px; left: 225px; top: 681px; position: absolute; background: #D9D9D9; cursor: pointer;"
+                onclick="document.getElementById('videoInput').click();">
+                <span
+                    style="position: absolute; top: 90%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; color: #555;">
+                    Pilih File Video
+                </span>
+            </div>
+
+            <!-- Input thumbnail baru -->
+            <input type="file" name="thumbnail" id="thumbnailInput" accept="image/*" style="display: none;"
+                onchange="previewThumbnail(event)">
+            <div class="Rectangle15"
+                style="width: 330px; height: 176px; left: 967px; top: 681px; position: absolute; background: #D9D9D9; cursor: pointer;"
+                onclick="document.getElementById('thumbnailInput').click();">
+                <span id="thumbnailText"
+                    style="position: absolute; top: 90%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; color: #555;">
+                    Pilih Thumbnail
+                </span>
+                <img id="thumbnailPreview" src="<?= $video['thumbnail'] ?>"
+                    style="width: 100%; height: 100%; object-fit: cover;" />
+            </div>
+
+            <!-- Judul -->
+            <input type="text" name="title" value="<?= htmlspecialchars($video['title']) ?>" placeholder="Isi Judul"
+                style="
+        width: 490px;
+        height: 39px;
+        left: 227px;
+        top: 179px;
+        position: absolute;
+        color: black;
+        font-size: 20px;
+        font-family: Roboto;
+        font-weight: 500;
+        line-height: 39px;
+        letter-spacing: 0.40px;
+        padding: 0 10px;
+        border: 1px solid #ccc;
+        box-sizing: border-box;
+        text-align: left;
+    ">
+
+            <!-- Deskripsi -->
+            <textarea name="description" placeholder="Isi Deskripsi untuk menjelaskan video"
+                style="width: 1097px; height: 195px; left: 235px; top: 354.63px; position: absolute; color: black; font-size: 16px; font-family: Roboto; font-weight: 300; line-height: 16px; letter-spacing: 0.40px; padding: 10px; border: 1px solid #ccc; box-sizing: border-box;"><?= htmlspecialchars($video['description']) ?></textarea>
+
+            <!-- Tombol Arsipkan -->
+            <button type="submit" name="arsipkan"
+                style="width: 163.56px; height: 68px; left: 1018px; top: 900px; position: absolute; background: #FF3636; border-radius: 23px; border: none; color: white; font-size: 24px; cursor: pointer;">
+                Arsipkan
+            </button>
+
+            <!-- Tombol Update -->
+            <button type="submit" name="update"
+                style="width: 166.18px; height: 68px; left: 1203px; top: 905px; position: absolute; background: #795757; border-radius: 23px; border: none; color: white; font-size: 24px; cursor: pointer;">
+                Update
+            </button>
+        </form>
+    </div>
+    <script>
+        function previewThumbnail(event) {
+            const reader = new FileReader();
+            reader.onload = function () {
+                const output = document.getElementById('thumbnailPreview');
+                output.src = reader.result;
+                output.style.display = 'block';
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        }
+    </script>
 </body>
 
 </html>

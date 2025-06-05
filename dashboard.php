@@ -1,22 +1,129 @@
 <?php
-include 'testsql.php';
+session_start();
+require_once 'testsql.php'; // Pastikan path ke file koneksi benar
 
-$sql = "SELECT * FROM Videos";
-$result = sqlsrv_query($conn, $sql);
+$uid = $_SESSION['uid'];
+$sort = $_GET['sort'] ?? 'tanggal'; // default: tanggal terbaru
+$orderBy = "V.uploaded_at DESC";    // default urutan
 
-if ($result === false) {
+switch ($sort) {
+    case 'views':
+        $orderBy = "(SELECT SUM(jumlahTonton) FROM Tonton T WHERE T.idVideo = V.id) DESC";
+        break;
+    case 'watchtime':
+        $orderBy = "(SELECT SUM(lamaMenonton) FROM Tonton T WHERE T.idVideo = V.id) DESC";
+        break;
+    case 'likes':
+        $orderBy = "(SELECT COUNT(*) FROM Tonton T WHERE T.idVideo = V.id AND likeDislike = 1) DESC";
+        break;
+    case 'comments':
+        $orderBy = "(SELECT COUNT(*) FROM Komen K WHERE K.idVideo = V.id) DESC";
+        break;
+    case 'tanggal':
+    default:
+        $orderBy = "V.uploaded_at DESC";
+        break;
+}
+
+$sql = "
+SELECT TOP 10 V.id, V.title, V.thumbnail, V.uploaded_at
+FROM Videos V
+INNER JOIN Channel C ON V.idChannel = C.idChannel
+INNER JOIN Admin A ON C.idChannel = A.ChannelID
+INNER JOIN Users U ON A.UserID = U.id
+WHERE U.id = ? AND V.isActive = 1
+ORDER BY $orderBy";
+
+$params = [$uid];
+$stmt = sqlsrv_query($conn, $sql, $params);
+
+if ($stmt === false) {
     die(print_r(sqlsrv_errors(), true));
 }
 
-while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
-    echo "<tr>";
-    echo "<td>" . htmlspecialchars($row['title']) . "</td>";
-    // echo "<td>" . number_format($row['filesize'] / 1024, 2) . " KB</td>";
-    echo "<td>" . $row['uploaded_at']->format('Y-m-d H:i:s') . "</td>";
-    echo "<td><a href='" . $row['path'] . "' target='_blank'>Lihat</a></td>";
-    echo "</tr>";
+$currentSort = $_GET['sort'] ?? 'tanggal';
+
+$isActiveV = ($currentSort === 'views') ? 'font-weight: bold; text-decoration: underline;' : 'text-decoration: none;';
+$isActiveW = ($currentSort === 'watchtime') ? 'font-weight: bold; text-decoration: underline;' : 'text-decoration: none;';
+$isActiveL = ($currentSort === 'likes') ? 'font-weight: bold; text-decoration: underline;' : 'text-decoration: none;';
+$isActiveC = ($currentSort === 'comments') ? 'font-weight: bold; text-decoration: underline;' : 'text-decoration: none;';
+$isActiveT = ($currentSort === 'tanggal') ? 'font-weight: bold; text-decoration: underline;' : 'text-decoration: none;';
+
+
+$totalVideos = 0;
+$totalViews = 0;
+$totalWatchTime = 0;
+$totalLikes = 0;
+$totalComments = 0;
+
+$videos = [];
+if ($stmt !== false) {
+    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $videoId = $row['id'];
+        $title = $row['title'];
+        $thumbnail = $row['thumbnail'];
+        $uploadedAt = $row['uploaded_at']->format('Y-m-d');
+        // Format tanggal upload
+        if ($row['uploaded_at'] instanceof DateTime) {
+            $row['uploaded_at_formatted'] = $row['uploaded_at']->format('Y-m-d H:i');
+        } else {
+            $row['uploaded_at_formatted'] = 'N/A';
+        }
+        $videos[] = $row;
+        $totalVideos++;
+
+        $totalViews += getViews($row['id']);
+        $totalWatchTime += getWatchTime($row['id']);
+        $totalLikes += getLikes($row['id']);
+        $totalComments += getComments($row['id']);
+    }
+} else {
+    echo "Error saat mengambil data video: " . print_r(sqlsrv_errors(), true);
 }
-echo "</table>";
+
+$offset = ($totalVideos >= 5 && $totalVideos <= 10) ? 300 + 300 * ($totalVideos - 5) : 300;
+
+sqlsrv_close($conn);
+
+function getViews($videoId)
+{
+    require 'testsql.php'; // Koneksi ke database
+    $sql = "SELECT SUM(jumlahTonton) AS total_views FROM Tonton WHERE idVideo = ? ";
+    $stmt = sqlsrv_query($conn, $sql, [$videoId]);
+    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    sqlsrv_close($conn);
+    return $row['total_views'] ?? 0;
+}
+function getWatchTime($videoId)
+{
+    require 'testsql.php';
+    $sql = "SELECT SUM(lamaMenonton) AS total_watchtime FROM Tonton WHERE idVideo = ?";
+    $stmt = sqlsrv_query($conn, $sql, [$videoId]);
+    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    sqlsrv_close($conn);
+    // diasumsikan watch time dalam menit, dikonversi ke jam (jika perlu)
+    return isset($row['total_watchtime']) ? $row['total_watchtime'] / 3600 : 0;
+}
+function getLikes($videoId)
+{
+    require 'testsql.php';
+    $sql = "SELECT COUNT(*) AS total_likes FROM Tonton WHERE idVideo = ? AND likeDislike = 1";
+    $stmt = sqlsrv_query($conn, $sql, [$videoId]);
+    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    sqlsrv_close($conn);
+    return $row['total_likes'] ?? 0;
+}
+function getComments($videoId)
+{
+    require 'testsql.php';
+    $sql = "SELECT COUNT(*) AS total_comments FROM Komen WHERE idVideo = ?";
+    $stmt = sqlsrv_query($conn, $sql, [$videoId]);
+    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    sqlsrv_close($conn);
+
+    return $row['total_comments'] ?? 0;
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -27,9 +134,9 @@ echo "</table>";
 </head>
 
 <body>
-    <data-layer="Video Filter" class="VideoFilter"
-        style="width: 1512px; height: 1423px; position: relative; background: white; overflow: hidden">
-        <div data-layer="Youtube-Logo" class="YoutubeLogo"
+    <div data-layer="VideoFilter" class="VideoFilter"
+        style="width: 1512px; height: <?= 1800 + $offset ?>px; position: relative; background: white; overflow: hidden">
+        <a href="homePage.php" data-layer="Youtube-Logo" class="YoutubeLogo"
             style="width: 204px; height: 45px; left: 44px; top: 53px; position: absolute; overflow: hidden">
 
             <div data-svg-wrapper data-layer="Vector" class="Vector" style="left: 0px; top: 0px; position: absolute">
@@ -100,7 +207,7 @@ echo "</table>";
                         fill="black" />
                 </svg>
             </div>
-        </div>
+        </a>
         <div data-svg-wrapper data-layer="Vector 2" class="Vector2"
             style="left: 1232.97px; top: 327.43px; position: absolute">
             <svg width="5" height="3" viewBox="0 0 5 3" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -108,232 +215,152 @@ echo "</table>";
             </svg>
         </div>
 
+
         <div data-layer="Line 5" class="Line5"
-            style="width: 1038px; height: 0px; left: 190px; top: 199px; position: absolute; transform: rotate(90deg); transform-origin: top left; outline: 1px black solid; outline-offset: -0.50px">
+            style="width: <?= 1038 + $offset ?>px; height: 0px; left: 190px; top: 199px; position: absolute; transform: rotate(90deg); transform-origin: top left; outline: 1px black solid; outline-offset: -0.50px">
         </div>
+
+        <div data-layer="Total" class="Total"
+            style="width: 402px; left: 584px; top: <?= 1180 + $offset ?>px; position: absolute; color: black; font-size: 24px; font-family: Roboto Slab; font-weight: 700;">
+            Total
+        </div>
+
+        <div data-layer="TotalViews" class="TotalViews"
+            style="width: 402px; left: 1035px; top: <?= 1180 + $offset ?>px; position: absolute; color: black; font-size: 24px; font-family: Roboto Slab; font-weight: 700;">
+            <?= $totalViews ?>
+        </div>
+        <div data-layer="TotalLike" class="TotalLike"
+            style="width: 402px; left: 1273px; top: <?= 1180 + $offset ?>px; position: absolute; color: black; font-size: 24px; font-family: Roboto Slab; font-weight: 700;">
+            <?= $totalLikes ?>
+        </div>
+        <div data-layer="TotalComments" class="TotalComments"
+            style="width: 402px; left: 1380px; top: <?= 1180 + $offset ?>px; position: absolute; color: black; font-size: 24px; font-family: Roboto Slab; font-weight: 700;">
+            <?= number_format($totalComments) ?>
+        </div>
+        <div data-layer="TotalWatchTime" class="TotalWatchTime"
+            style="width: 402px; left: 1160px; top: <?= 1180 + $offset ?>px; position: absolute; color: black; font-size: 24px; font-family: Roboto Slab; font-weight: 700;">
+            <?= number_format($totalWatchTime, 1) ?>
+        </div>
+
+
         <div data-layer="Line 6" class="Line6"
             style="width: 1316px; height: 0px; left: 190px; top: 297px; position: absolute; outline: 1px black solid; outline-offset: -0.50px">
         </div>
+        <!-- Line 7: Top bertambah -->
         <div data-layer="Line 7" class="Line7"
-            style="width: 1316px; height: 0px; left: 191px; top: 1156px; position: absolute; outline: 1px black solid; outline-offset: -0.50px">
+            style="width: 1316px; height: 0px; left: 191px; top: <?= 1156 + $offset ?>px; position: absolute; outline: 1px black solid; outline-offset: -0.50px">
         </div>
         <div data-layer="Line 8" class="Line8"
             style="width: 1316px; height: 0px; left: 190px; top: 200px; position: absolute; outline: 1px black solid; outline-offset: -0.50px">
         </div>
+        <!-- Line 9: Top bertambah -->
         <div data-layer="Line 9" class="Line9"
-            style="width: 1316px; height: 0px; left: 191px; top: 1237px; position: absolute; outline: 1px black solid; outline-offset: -0.50px">
+            style="width: 1316px; height: 0px; left: 191px; top: <?= 1237 + $offset ?>px; position: absolute; outline: 1px black solid; outline-offset: -0.50px">
         </div>
-        <div data-layer="Rectangle 27" class="Rectangle27"
-            style="width: 320px; height: 165px; left: 231px; top: 340px; position: absolute; background: #E179CF; border-radius: 20px">
-        </div>
-        <div data-layer="Rectangle 28" class="Rectangle28"
-            style="width: 320px; height: 165px; left: 231px; top: 548px; position: absolute; background: #983333; border-radius: 20px">
-        </div>
-        <div data-layer="Rectangle 29" class="Rectangle29"
-            style="width: 320px; height: 165px; left: 231px; top: 756px; position: absolute; background: #47C5BD; border-radius: 20px">
-        </div>
-        <div data-layer="Rectangle 30" class="Rectangle30"
-            style="width: 320px; height: 165px; left: 233px; top: 964px; position: absolute; background: #CDD194; border-radius: 20px">
-        </div>
-        <div data-layer="Lorem Ipsum (Deskripsi)" class="LoremIpsumDeskripsi"
-            style="width: 126px; height: 28px; left: 584px; top: 454px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Lorem
-            Ipsum (Deskripsi)</div>
+
+        <a href="?sort=tanggal"
+            style="width: 126px; height: 28px; left: 580px; top: 237px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word;<?= htmlspecialchars($isActiveT) ?>">
+            Tanggal</a>
+
+        <a href="?sort=views"
+            style="position: absolute; top: 237px; left: 980px; width: 126px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-family: Roboto; font-weight: 400; text-decoration: none; color: black; <?= htmlspecialchars($isActiveV) ?>">
+            Views
+        </a>
+
+        <a href="?sort=likes"
+            style="width: 126px; height: 28px; left: 1273px; top: 235px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word;<?= htmlspecialchars($isActiveL) ?>">
+            Like</a>
+
+        <a href="?sort=comments"
+            style="width: 126px; height: 28px; left: 1361px; top: 233px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word;<?= htmlspecialchars($isActiveC) ?>">
+            Comments</a>
+        <a href="?sort=watchtime"
+            style="width: 126px; left: 1116px; top: 241px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word;<?= htmlspecialchars($isActiveW) ?>">
+            Watch
+            Time<br />(Hours)</a>
         <div data-layer="Last 28 days" class="Last28Days"
             style="width: 126px; height: 28px; left: 230px; top: 235px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Last
-            28 days</div>
-        <div data-layer="Total" class="Total"
-            style="width: 126px; height: 28px; left: 239px; top: 1183px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Total</div>
-        <div data-layer="May, 24 2025" class="May242025"
-            style="width: 126px; height: 28px; left: 584px; top: 416px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            May,
-            24 2025</div>
-        <div data-layer="May, 24 2025" class="May242025"
-            style="width: 126px; height: 28px; left: 584px; top: 416px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            May,
-            24 2025</div>
-        <div data-layer="May, 22 2025" class="May222025"
-            style="width: 126px; height: 28px; left: 584px; top: 627px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            May,
-            22 2025</div>
-        <div data-layer="May, 16 2025" class="May162025"
-            style="width: 126px; height: 28px; left: 584px; top: 835px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            May,
-            16 2025</div>
-        <div data-layer="May, 10 2025" class="May102025"
-            style="width: 126px; height: 28px; left: 584px; top: 1042px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            May,
-            10 2025</div>
-        <div data-layer="8,944" class="944"
-            style="width: 126px; height: 28px; left: 1275px; top: 409px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            8,944</div>
-        <div data-layer="20,7" class="7"
-            style="width: 126px; height: 28px; left: 1159px; top: 409px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            20,7</div>
-        <div data-layer="40,227" class="227"
-            style="width: 126px; height: 28px; left: 1041px; top: 409px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            40,227</div>
-        <div data-layer="8,944" class="944"
-            style="width: 126px; height: 28px; left: 1275px; top: 409px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            8,944</div>
-        <div data-layer="Watch Time (Hours)" class="WatchTimeHours"
-            style="width: 126px; left: 1116px; top: 241px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Watch
-            Time<br />(Hours)</div>
-        <div data-layer="Views" class="Views"
-            style="width: 126px; height: 28px; left: 1041px; top: 237px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Views</div>
-        <div data-layer="Like" class="Like"
-            style="width: 126px; height: 28px; left: 1273px; top: 235px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Like</div>
-        <div data-layer="Comments" class="Comments"
-            style="width: 126px; height: 28px; left: 1361px; top: 233px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Comments</div>
-        <div data-layer="12,376" class="376"
-            style="width: 126px; height: 28px; left: 1275px; top: 617px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            12,376</div>
-        <div data-layer="29,5" class="5"
-            style="width: 126px; height: 28px; left: 1159px; top: 617px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            29,5</div>
-        <div data-layer="64,801" class="801"
-            style="width: 126px; height: 28px; left: 1041px; top: 617px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            64,801</div>
-        <div data-layer="30,098" class="098"
-            style="width: 126px; height: 28px; left: 1275px; top: 824px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            30,098</div>
-        <div data-layer="33,1" class="1"
-            style="width: 126px; height: 28px; left: 1159px; top: 824px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            33,1</div>
-        <div data-layer="88,938" class="938"
-            style="width: 126px; height: 28px; left: 1041px; top: 824px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            88,938</div>
-        <div data-layer="50,720" class="720"
-            style="width: 126px; height: 28px; left: 1275px; top: 1026px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            50,720</div>
-        <div data-layer="40,3" class="3"
-            style="width: 126px; height: 28px; left: 1159px; top: 1026px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            40,3</div>
-        <div data-layer="132,768" class="768"
-            style="width: 126px; height: 28px; left: 1041px; top: 1026px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            132,768</div>
-        <div data-layer="326,734" class="734"
-            style="width: 126px; height: 28px; left: 1042px; top: 1183px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            326,734</div>
-        <div data-layer="123,6" class="6"
-            style="width: 126px; height: 28px; left: 1171px; top: 1183px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            123,6</div>
-        <div data-layer="102,138" class="138"
-            style="width: 126px; height: 28px; left: 1273px; top: 1183px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            102,138</div>
-        <div data-layer="Lorem Ipsum (Deskripsi)" class="LoremIpsumDeskripsi"
-            style="width: 126px; height: 28px; left: 584px; top: 665px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Lorem
-            Ipsum (Deskripsi)</div>
-        <div data-layer="Lorem Ipsum (Deskripsi)" class="LoremIpsumDeskripsi"
-            style="width: 126px; height: 28px; left: 584px; top: 873px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Lorem
-            Ipsum (Deskripsi)</div>
-        <div data-layer="Lorem Ipsum (Deskripsi)" class="LoremIpsumDeskripsi"
-            style="width: 126px; height: 28px; left: 584px; top: 1081px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Lorem
-            Ipsum (Deskripsi)</div>
-        <div data-layer="KONTEN 1 (Ini Ceritanya JUDUL)" class="Konten1IniCeritanyaJudul"
-            style="width: 402px; left: 584px; top: 389px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto Slab; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            KONTEN
-            1 (Ini Ceritanya JUDUL)</div>
-        <div data-layer="KONTEN 1 (Ini Ceritanya JUDUL)" class="Konten1IniCeritanyaJudul"
-            style="width: 402px; left: 584px; top: 600px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto Slab; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            KONTEN
-            1 (Ini Ceritanya JUDUL)</div>
-        <div data-layer="KONTEN 1 (Ini Ceritanya JUDUL)" class="Konten1IniCeritanyaJudul"
-            style="width: 402px; left: 584px; top: 808px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto Slab; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            KONTEN
-            1 (Ini Ceritanya JUDUL)</div>
-        <div data-layer="KONTEN 1 (Ini Ceritanya JUDUL)" class="Konten1IniCeritanyaJudul"
-            style="width: 402px; left: 584px; top: 1016px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto Slab; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            KONTEN
-            1 (Ini Ceritanya JUDUL)</div>
+            Top <?= ($totalVideos) ?></div>
+        <?php
+        $top = 340; // Posisi awal top
+        $increment = 208; // Jarak antar elemen
+        
+        foreach ($videos as $video) {
+            // Hitung jumlah views, watch time, like, dan komentar
+            // Misalnya, Anda memiliki fungsi untuk mendapatkan data tersebut
+            $views = getViews($video['id']);
+            $watchTime = getWatchTime($video['id']);
+            $likes = getLikes($video['id']);
+            $comments = getComments($video['id']);
+            ?>
+            <!-- Thumbnail -->
+            <div class="Rectangle27"
+                style="width: 320px; height: 165px; left: 231px; top: <?= $top ?>px; position: absolute; background: #E179CF; border-radius: 20px">
+                <img src="<?= htmlspecialchars($video['thumbnail']) ?>" alt="Thumbnail"
+                    style="width: 100%; height: 100%; border-radius: 20px;">
+            </div>
 
-        <div data-svg-wrapper data-layer="edit-03" class="Edit03" style="left: 1457px; top: 406px; position: absolute">
-            <a href="EditKonten.php">
-                <svg width="43" height="43" viewBox="0 0 43 43" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path fill-rule="evenodd" clip-rule="evenodd"
-                        d="M24.866 6.6419C26.965 4.54283 30.3683 4.54283 32.4674 6.6419L36.3581 10.5326C38.4572 12.6317 38.4572 16.035 36.3581 18.134L17.3919 37.1002C17.0559 37.4362 16.6002 37.625 16.125 37.625H7.16667C6.17716 37.625 5.375 36.8228 5.375 35.8333V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.6419ZM29.9336 9.1757C29.2339 8.47601 28.0995 8.47601 27.3998 9.1757L25.8255 10.75L32.25 17.1745L33.8243 15.6002C34.524 14.9005 34.524 13.7661 33.8243 13.0664L29.9336 9.1757ZM29.7162 19.7083L23.2917 13.2838L8.95833 27.6171V34.0417H15.3829L29.7162 19.7083Z"
-                        fill="#858080" />
-                </svg>
-            </a>
-        </div>
+            <!-- Judul -->
+            <div class="Judul"
+                style="width: 402px; left: 584px; top: <?= $top + 49 ?>px; position: absolute; color: black; font-size: 24px; font-family: Roboto Slab; font-weight: 700;">
+                <?= htmlspecialchars($video['title']) ?>
+            </div>
 
-        <div data-svg-wrapper data-layer="edit-03" class="Edit03" style="left: 1452px; top: 616px; position: absolute">
-            <a href="EditKonten.php">
-                <svg width="43" height="43" viewBox="0 0 43 43" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path fill-rule="evenodd" clip-rule="evenodd"
-                        d="M24.866 6.6419C26.965 4.54283 30.3683 4.54283 32.4674 6.6419L36.3581 10.5326C38.4572 12.6317 38.4572 16.035 36.3581 18.134L17.3919 37.1002C17.0559 37.4362 16.6002 37.625 16.125 37.625H7.16667C6.17716 37.625 5.375 36.8228 5.375 35.8333V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.6419ZM29.9336 9.1757C29.2339 8.47601 28.0995 8.47601 27.3998 9.1757L25.8255 10.75L32.25 17.1745L33.8243 15.6002C34.524 14.9005 34.524 13.7661 33.8243 13.0664L29.9336 9.1757ZM29.7162 19.7083L23.2917 13.2838L8.95833 27.6171V34.0417H15.3829L29.7162 19.7083Z"
-                        fill="#858080" />
-                </svg>
+            <!-- Tanggal Upload -->
+            <div class="TanggalUpload"
+                style="width: 200px; left: 584px; top: <?= $top + 80 ?>px; position: absolute; color: black; font-size: 16px; font-family: Roboto; ">
+                <?= htmlspecialchars($video['uploaded_at_formatted']) ?>
+            </div>
+
+            <!-- Views -->
+            <div class="ViewsInVideo"
+                style="width: 126px; height: 28px; left: 1041px; top: <?= $top + 69 ?>px; position: absolute; color: black; font-size: 20px; font-family: Roboto;">
+                <?= number_format($views) ?>
+            </div>
+
+            <!-- Watch Time -->
+            <div class="WatchHour"
+                style="width: 126px; height: 28px; left: 1159px; top: <?= $top + 69 ?>px; position: absolute; color: black; font-size: 20px; font-family: Roboto;">
+                <?= number_format($watchTime, 1) ?>
+            </div>
+
+            <!-- Likes -->
+            <div class="Like"
+                style="width: 126px; height: 28px; left: 1275px; top: <?= $top + 69 ?>px; position: absolute; color: black; font-size: 20px; font-family: Roboto; ">
+                <?= number_format($likes) ?>
+            </div>
+
+            <!-- Komentar -->
+            <a href="KomenFilter.php?id=<?= htmlspecialchars($video['id']) ?>" class="Komentar"
+                style="width: 126px; height: 28px; left: 1384px; top: <?= $top + 69 ?>px; position: absolute; color: black; font-size: 20px; font-family: Roboto; ">
+                <?= number_format($comments) ?>
             </a>
-        </div>
-        <div data-svg-wrapper data-layer="edit-03" class="Edit03" style="left: 1452px; top: 823px; position: absolute">
-            <a href="EditKonten.php">
-                <svg width="43" height="43" viewBox="0 0 43 43" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path fill-rule="evenodd" clip-rule="evenodd"
-                        d="M24.866 6.6419C26.965 4.54284 30.3683 4.54283 32.4674 6.6419L36.3581 10.5326C38.4572 12.6317 38.4572 16.035 36.3581 18.134L17.3919 37.1002C17.0559 37.4362 16.6002 37.625 16.125 37.625H7.16667C6.17716 37.625 5.375 36.8228 5.375 35.8333V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.6419ZM29.9336 9.1757C29.2339 8.47601 28.0995 8.47601 27.3998 9.1757L25.8255 10.75L32.25 17.1745L33.8243 15.6002C34.524 14.9005 34.524 13.7661 33.8243 13.0664L29.9336 9.1757ZM29.7162 19.7083L23.2917 13.2838L8.95833 27.6171V34.0417H15.3829L29.7162 19.7083Z"
-                        fill="#858080" />
-                </svg>
-            </a>
-        </div>
-        <div data-svg-wrapper data-layer="edit-03" class="Edit03" style="left: 1452px; top: 1018px; position: absolute">
-            <a href="EditKonten.php">
-                <svg width="43" height="43" viewBox="0 0 43 43" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path fill-rule="evenodd" clip-rule="evenodd"
-                        d="M24.866 6.6419C26.965 4.54283 30.3683 4.54283 32.4674 6.6419L36.3581 10.5326C38.4572 12.6317 38.4572 16.035 36.3581 18.134L17.3919 37.1002C17.0559 37.4362 16.6002 37.625 16.125 37.625H7.16667C6.17716 37.625 5.375 36.8228 5.375 35.8333V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.6419ZM29.9336 9.1757C29.2339 8.47601 28.0995 8.47601 27.3998 9.1757L25.8255 10.75L32.25 17.1745L33.8243 15.6002C34.524 14.9005 34.524 13.7661 33.8243 13.0664L29.9336 9.1757ZM29.7162 19.7083L23.2917 13.2838L8.95833 27.6171V34.0417H15.3829L29.7162 19.7083Z"
-                        fill="#858080" />
-                </svg>
-            </a>
-        </div>
-        <div data-layer="Rectangle 48" class="Rectangle48"
-            style="width: 147px; height: 52px; left: 1321px; top: 1318px; position: absolute; background: #D9D9D9; border-radius: 40px">
-        </div>
-        <div data-layer="Add Video" class="AddVideo"
-            style="width: 115px; height: 8px; left: 1337px; top: 1342px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Add
-            Video</div>
+
+            <!-- Tombol Edit -->
+            <div class='Edit03' style='left: 1457px; top: <?= $top + 57 ?>px; position: absolute'>
+                <a href='EditKonten.php?id=<?= htmlspecialchars($video['id']) ?>'>
+                    <svg width='43' height='43' viewBox='0 0 43 43' fill='none' xmlns='http://www.w3.org/2000/svg'>
+                        <path fill-rule='evenodd' clip-rule='evenodd'
+                            d='M24.866 6.6419C26.965 4.54283 30.3683 4.54283 32.4674 6.6419L36.3581 10.5326C38.4572 12.6317 38.4572 16.035 36.3581 18.134L17.3919 37.1002C17.0559 37.4362 16.6002 37.625 16.125 37.625H7.16667C6.17716 37.625 5.375 36.8228 5.375 35.8333V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.6419ZM29.9336 9.1757C29.2339 8.47601 28.0995 8.47601 27.3998 9.1757L25.8255 10.75L32.25 17.1745L33.8243 15.6002C34.524 14.9005 34.524 13.7661 33.8243 13.0664L29.9336 9.1757ZM29.7162 19.7083L23.2917 13.2838L8.95833 27.6171V34.0417H15.3829L29.7162 19.7083Z'
+                            fill='#858080' />
+                    </svg>
+                </a>
+            </div>
+
+            <?php
+            $top += $increment;
+        }
+        ?>
+
+
         <div data-layer="Rectangle 21" class="Rectangle21"
-            style="width: 145px; height: 52px; left: 1322px; top: 1318px; position: absolute; background: #795757; border-radius: 23px">
+            style="width: 145px; height: 52px; left: 1322px; top: <?= 1318 + $offset ?>px; position: absolute; background: #795757; border-radius: 23px">
         </div>
+        <!-- Add Video Button: Top bertambah -->
         <a href="upload.php"
-            style="width: 146px; height: 15px; left: 1321px; top: 1336px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: #FFF3F3; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Add
-            Video</a>
-
-        <a href="KomenFilter.php" style="left: 1384px; top: 408px; position: absolute">
-            <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M0 15C0 6.71573 6.71573 0 15 0C23.2843 0 30 6.71573 30 15V30H15C6.71573 30 0 23.2843 0 15Z"
-                    fill="#8F8484" />
-            </svg>
-        </a>
-
-        <a href="KomenFilter.php" style="left: 1384px; top: 615px; position: absolute">
-            <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M0 15C0 6.71573 6.71573 0 15 0C23.2843 0 30 6.71573 30 15V30H15C6.71573 30 0 23.2843 0 15Z"
-                    fill="#8F8484" />
-            </svg>
-        </a>
-        <a href="KomenFilter.php" style="left: 1384px; top: 822px; position: absolute">
-            <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M0 15C0 6.71573 6.71573 0 15 0C23.2843 0 30 6.71573 30 15V30H15C6.71573 30 0 23.2843 0 15Z"
-                    fill="#8F8484" />
-            </svg>
-        </a>
-        <a href="KomenFilter.php" style="left: 1384px; top: 1029px; position: absolute">
-            <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M0 15C0 6.71573 6.71573 0 15 0C23.2843 0 30 6.71573 30 15V30H15C6.71573 30 0 23.2843 0 15Z"
-                    fill="#8F8484" />
-            </svg>
-        </a>
-        </div>
+            style="width: 146px; height: 15px; left: 1321px; top: <?= 1336 + $offset ?>px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: #FFF3F3; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
+            Add Video</a>
+    </div>
 </body>
 
 </html>

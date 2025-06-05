@@ -2,52 +2,65 @@
 session_start();
 require_once 'testsql.php';
 
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $username = trim($_POST['username']);
     $email = trim($_POST['email']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
 
-    // Validasi
+    $uploadDir = 'Profile/'; // folder tempat menyimpan file
+    $fotoProfilPath = 'Profile/NoProfile.jpg'; // default path
+
+    // Validasi password dulu
     if ($password !== $confirm_password) {
-        echo "<script>alert('Password dan konfirmasi tidak sama!');
-              window.location.href='register.php';</script>";
+        echo "<script>alert('Password dan konfirmasi tidak sama!'); window.location.href='register.php';</script>";
         exit;
     }
 
-    // Cek apakah username/email sudah digunakan
+    // Cek username/email sudah dipakai
     $sqlCheck = "SELECT username FROM Users WHERE username = ? OR email = ?";
     $paramsCheck = [$username, $email];
     $stmtCheck = sqlsrv_query($conn, $sqlCheck, $paramsCheck);
-
-
 
     if ($stmtCheck === false) {
         die(print_r(sqlsrv_errors(), true));
     }
 
     if (sqlsrv_has_rows($stmtCheck)) {
-        echo "<script>alert('Username atau email sudah digunakan!');
-          window.location.href='register.php';</script>";
+        echo "<script>alert('Username atau email sudah digunakan!'); window.location.href='register.php';</script>";
         exit;
     }
 
+    // *** Proses upload foto dulu ***
+    if (isset($_FILES['fotoProfil']) && $_FILES['fotoProfil']['error'] === UPLOAD_ERR_OK) {
+        $tmpName = $_FILES['fotoProfil']['tmp_name'];
+        $fileName = basename($_FILES['fotoProfil']['name']);
+        $filePath = $uploadDir . uniqid() . '_' . $fileName;
 
-    // Simpan user baru
-    $sqlInsert = "INSERT INTO Users (Username, Email, Pass) VALUES (?, ?, ?)";
-    $paramsInsert = [$username, $email, $password]; // tanpa hash sesuai permintaan
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        if (move_uploaded_file($tmpName, $filePath)) {
+            $fotoProfilPath = $filePath; // update path dengan file upload
+        }
+    }
+
+    // Insert user dengan path foto yang sudah di-set
+    $sqlInsert = "INSERT INTO Users (Username, Email, Pass, fotoProfil) VALUES (?, ?, ?, ?)";
+    $paramsInsert = [$username, $email, $password, $fotoProfilPath];
     $stmtInsert = sqlsrv_query($conn, $sqlInsert, $paramsInsert);
 
     if ($stmtInsert) {
-        echo "<script>alert('Registrasi berhasil! Silakan login.');
-              window.location.href='index.php';</script>";
+        echo "<script>alert('Registrasi berhasil! Silakan login.'); window.location.href='index.php';</script>";
     } else {
-        echo "<script>alert('Gagal registrasi!');
-              window.location.href='register.php';</script>";
+        echo "<script>alert('Gagal registrasi!'); window.location.href='register.php';</script>";
     }
 
     exit;
 }
+
 ?>
 
 
@@ -119,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
 
 <body>
     <div data-layer="Register Page" class="RegisterPage"
-        style="width: 1512px; height: 1009px; position: relative; background: white; overflow: hidden">
+        style="width: 1512px; height: 1200px; position: relative; background: white; overflow: hidden">
         <div data-layer="Youtube-Logo" class="YoutubeLogo"
             style="width: 258px; height: 57px; left: 56px; top: 53px; position: absolute; overflow: hidden">
             <div data-svg-wrapper data-layer="Vector" class="Vector" style="left: 0px; top: 0px; position: absolute">
@@ -192,61 +205,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             </div>
         </div>
         <div data-layer="Rectangle 51" class="Rectangle51"
-            style="width: 829px; height: 900px; left: 103px; top: 181px; position: absolute; background: #D9D9D9; border-radius: 64px">
+            style="width: 829px; height: 1000px; left: 103px; top: 181px; position: absolute; background: #D9D9D9; border-radius: 64px">
         </div>
 
         <a href="index.php"
             style="width: 125px; height: 54px; left: 170px; top: 250px; position: absolute; color: black; font-size: 46px; font-family: Inter; font-weight: 400; word-wrap: break-word; text-decoration: none;">
             Login
         </a>
-
         <div data-layer="Register" class="Register"
             style="width: 197px; height: 54px; left: 339px; top: 250px; position: absolute; opacity: 0.90; color: black; font-size: 48px; font-family: Inter; font-weight: 700; word-wrap: break-word">
             Register</div>
+
         <div data-layer="Username" class="Username"
-            style="width: 155px; height: 36px; left: 174px; top: 353px; position: absolute; color: black; font-size: 30px; font-family: Inter; font-weight: 400; word-wrap: break-word">
+            style="width: 155px; height: 36px; left: 174px; top: 583px; position: absolute; color: black; font-size: 30px; font-family: Inter; font-weight: 400; word-wrap: break-word">
             Username</div>
         <div data-layer="Email" class="Email"
-            style="width: 81px; height: 37px; left: 174px; top: 468px; position: absolute; color: black; font-size: 30px; font-family: Inter; font-weight: 400; word-wrap: break-word">
+            style="width: 81px; height: 37px; left: 174px; top: 698px; position: absolute; color: black; font-size: 30px; font-family: Inter; font-weight: 400; word-wrap: break-word">
             Email</div>
         <div data-layer="Confirm Password" class="ConfirmPassword"
-            style="width: 277px; height: 36px; left: 174px; top: 704px; position: absolute; color: black; font-size: 30px; font-family: Inter; font-weight: 400; word-wrap: break-word">
+            style="width: 277px; height: 36px; left: 174px; top: 934px; position: absolute; color: black; font-size: 30px; font-family: Inter; font-weight: 400; word-wrap: break-word">
             Confirm Password</div>
         <div data-layer="Password" class="Password"
-            style="width: 148px; height: 36px; left: 174px; top: 585px; position: absolute; color: black; font-size: 30px; font-family: Inter; font-weight: 400; word-wrap: break-word">
+            style="width: 148px; height: 36px; left: 174px; top: 815px; position: absolute; color: black; font-size: 30px; font-family: Inter; font-weight: 400; word-wrap: break-word">
             Password</div>
+        <div data-layer="Foto Profil" class="FotoProfile"
+            style="width: 277px; height: 36px; left: 401px; top: 340px; position: absolute; color: black; font-size: 30px; font-family: Inter; font-weight: 400; word-wrap: break-word">
+            Select Photo Profile </div>
+        <img id="previewImage" src="Profile/NoProfile.jpg"
+            style="width: 130px; height: 130px; left: 455px; top: 373px; position: absolute; border-radius: 200px; object-fit: cover;"
+            alt="Preview Foto">
 
 
         <img data-layer="YoutubeMascott" class="YoutubeMascott"
             style="width: 510.92px; height: 369px; left: 944px; top: 312px; position: absolute"
-            src="Assets/Youtube-Mascott.png" >
+            src="Assets/Youtube-Mascott.png">
 
 
-        <form method="POST" action="register.php">
-            <input type="text" name="username" placeholder="Username" required style="width: 693px; height: 59px; left: 171px; top: 394px; position: absolute; 
+        <form method="POST" action="register.php" enctype="multipart/form-data">
+            <input type="text" name="username" placeholder="Username" required style="width: 693px; height: 59px; left: 171px; top: 624px; position: absolute; 
            background: white; border-radius: 12px; border: 1px solid #ccc; 
            padding-left: 16px; font-size: 20px; box-sizing: border-box; color: black;">
 
-            <input type="password" name="password" placeholder="Password" required style="width: 693px; height: 59px; left: 171px; top: 624px; position: absolute; 
+            <input type="password" name="password" placeholder="Password" required style="width: 693px; height: 59px; left: 171px; top: 854px; position: absolute; 
            background: white; border-radius: 12px; border: 1px solid #ccc; 
            padding-left: 16px; font-size: 20px; box-sizing: border-box; color: black;">
 
-            <input type="email" name="email" placeholder="Email" required style="width: 693px; height: 59px; left: 171px; top: 506px; position: absolute; 
+            <input type="email" name="email" placeholder="Email" required style="width: 693px; height: 59px; left: 171px; top: 736px; position: absolute; 
            background: white; border-radius: 12px; border: 1px solid #ccc; 
            padding-left: 16px; font-size: 20px; box-sizing: border-box; color: black;">
 
-            <input type="password" name="confirm_password" placeholder="Confirm Password" required style="width: 693px; height: 59px; left: 171px; top: 742px; position: absolute; 
+            <input type="password" name="confirm_password" placeholder="Confirm Password" required style="width: 693px; height: 59px; left: 171px; top: 972px; position: absolute; 
            background: white; border-radius: 12px; border: 1px solid #ccc; 
            padding-left: 16px; font-size: 20px; box-sizing: border-box; color: black;">
 
-            <button type="submit" name="register" style="width: 333px; height: 59px; left: 351px; top: 930px; position: absolute; 
+            <button type="submit" name="register" style="width: 333px; height: 59px; left: 351px; top: 1080px; position: absolute; 
            background: #4CAF50; border-radius: 12px; border: none; color: white; 
            font-size: 24px; font-weight: bold; cursor: pointer;">
                 Register
             </button>
-        </form>
 
+            <input type="file" id="photoInput" name="fotoProfil" accept="image/*" style="display: none;"
+                onchange="document.getElementById('labelFoto').innerText = this.files[0]?.name || 'Select Photo'">
+
+
+            <button type="button" onclick="document.getElementById('photoInput').click();" style="width: 150px; height: 40px; left: 450px; top: 520px; position: absolute;
+               background: #4CAF50; border-radius: 12px; border: none; color: white;
+               font-size: 20px; font-weight: bold; cursor: pointer; display: flex;
+               align-items: center; justify-content: center;">
+                Select Photo
+
+        </form>
     </div>
+    <script>
+        document.getElementById('photoInput').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('previewImage').src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
+
 </body>
 
 </html>

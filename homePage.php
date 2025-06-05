@@ -1,5 +1,35 @@
 <?php
 require_once 'testsql.php'; // Koneksi SQL Server
+//mengambil user session
+
+session_start();
+if (!isset($_SESSION['uid'])) {
+  header("Location: index.php");
+  exit;
+}
+
+// Ambil data dari session
+$userId = $_SESSION['uid'];
+$username = $_SESSION['uname'];
+$fotoProfil = $_SESSION['fotoProfil'] ?: 'Assets/NoProfile.jpg';// path foto profil
+$isAdmin = false;
+
+if (isset($_SESSION['uid'])) {
+
+    $sql = "
+        SELECT A.ChannelID
+        FROM Admin A
+        WHERE A.UserID = ?
+    ";
+    $stmt = sqlsrv_query($conn, $sql, [$userId]);
+
+    if ($stmt && sqlsrv_has_rows($stmt)) {
+        $isAdmin = true; // User sudah jadi admin
+    }
+}
+
+
+
 $sql = "SELECT 
             V.id,
             V.title,
@@ -11,6 +41,7 @@ $sql = "SELECT
         FROM Videos V
         JOIN Channel C ON V.idChannel = C.idChannel
         LEFT JOIN Tonton T ON V.id = T.idVideo
+        WHERE V.isActive = 1
         GROUP BY 
             V.id, V.title, V.thumbnail, V.uploaded_at, 
             C.namaChannel, C.fotoProfil
@@ -273,66 +304,22 @@ for ($i = 0; $i < 9; $i++):
     <a href="EditChannelInd.php">
       <img data-layer="MainProfile" class="Mainprofile"
         style="width: 75; height: 75; left: 1415; top: 22; position: absolute; border-radius: 200px"
-        src="Assets/MainProfile.jpg" alt="Foto Profil Utama">
+        src="<?= htmlspecialchars(string: $fotoProfil) ?>" alt="Foto Profil Utama">
     </a>
-    <div data-layer="Rectangle 5" class="Rectangle5"
-      style="width: 68px; height: 33px; left: 552px; top: 315px; position: absolute; background: black; border-radius: 21px">
-    </div>
-    <div data-layer="20.04" class="04"
-      style="left: 565px; top: 322px; position: absolute; color: white; font-size: 16px; font-family: Roboto; font-weight: 400; word-wrap: break-word">
-      20.04</div>
-    <div data-layer="Rectangle 5" class="Rectangle5"
-      style="width: 68px; height: 33px; left: 968px; top: 315px; position: absolute; background: black; border-radius: 21px">
-    </div>
-    <div data-layer="20.04" class="04"
-      style="left: 981px; top: 322px; position: absolute; color: white; font-size: 16px; font-family: Roboto; font-weight: 400; word-wrap: break-word">
-      20.04</div>
-    <div data-layer="Rectangle 5" class="Rectangle5"
-      style="width: 68px; height: 33px; left: 1384px; top: 315px; position: absolute; background: black; border-radius: 21px">
-    </div>
-    <div data-layer="20.04" class="04"
-      style="left: 1397px; top: 322px; position: absolute; color: white; font-size: 16px; font-family: Roboto; font-weight: 400; word-wrap: break-word">
-      20.04</div>
-    <div data-layer="Rectangle 5" class="Rectangle5"
-      style="width: 68px; height: 33px; left: 552px; top: 584px; position: absolute; background: black; border-radius: 21px">
-    </div>
-    <div data-layer="20.04" class="04"
-      style="left: 565px; top: 591px; position: absolute; color: white; font-size: 16px; font-family: Roboto; font-weight: 400; word-wrap: break-word">
-      20.04</div>
-    <div data-layer="Rectangle 5" class="Rectangle5"
-      style="width: 68px; height: 33px; left: 968px; top: 584px; position: absolute; background: black; border-radius: 21px">
-    </div>
-    <div data-layer="20.04" class="04"
-      style="left: 981px; top: 591px; position: absolute; color: white; font-size: 16px; font-family: Roboto; font-weight: 400; word-wrap: break-word">
-      20.04</div>
-    <div data-layer="Rectangle 5" class="Rectangle5"
-      style="width: 68px; height: 33px; left: 968px; top: 853px; position: absolute; background: black; border-radius: 21px">
-    </div>
-    <div data-layer="20.04" class="04"
-      style="left: 981px; top: 860px; position: absolute; color: white; font-size: 16px; font-family: Roboto; font-weight: 400; word-wrap: break-word">
-      20.04</div>
-    <div data-layer="Rectangle 5" class="Rectangle5"
-      style="width: 68px; height: 33px; left: 1384px; top: 853px; position: absolute; background: black; border-radius: 21px">
-    </div>
-    <div data-layer="20.04" class="04"
-      style="left: 1397px; top: 860px; position: absolute; color: white; font-size: 16px; font-family: Roboto; font-weight: 400; word-wrap: break-word">
-      20.04</div>
-    <div data-layer="Rectangle 5" class="Rectangle5"
-      style="width: 68px; height: 33px; left: 1384px; top: 584px; position: absolute; background: black; border-radius: 21px">
-    </div>
-    <div data-layer="20.04" class="04"
-      style="left: 1397px; top: 591px; position: absolute; color: white; font-size: 16px; font-family: Roboto; font-weight: 400; word-wrap: break-word">
-      20.04</div>
-    <div data-layer="Rectangle 5" class="Rectangle5"
-      style="width: 68px; height: 33px; left: 552px; top: 853px; position: absolute; background: black; border-radius: 21px">
-    </div>
-    <div data-layer="20.04" class="04"
-      style="left: 565px; top: 860px; position: absolute; color: white; font-size: 16px; font-family: Roboto; font-weight: 400; word-wrap: break-word">
-      20.04</div>
+
+    <?php if (!$isAdmin): ?>
+      <a href="makeChannel.php" style="display: inline-block; width: 104px; height: 43px; left: 1209px; top: 40px; position: absolute; 
+        background: #795757; border-radius: 12px; text-align: center; line-height: 43px; color: white; 
+        text-decoration: none; font-family: Inter; font-size: 14px;">
+        Make Channel
+      </a>
+    <?php endif; ?>
+
+
     <?php
     require_once 'testsql.php'; // Pastikan koneksi SQL Server
     
-    $sql = "SELECT id, title, thumbnail FROM Videos ORDER BY id ASC";
+    $sql = "SELECT id, title, thumbnail FROM Videos WHERE isACtive = 1 ORDER BY id DESC";
     $result = sqlsrv_query($conn, $sql);
     $videos = [];
 
@@ -362,7 +349,7 @@ for ($i = 0; $i < 9; $i++):
     <?php endfor; ?>
 
     <div data-svg-wrapper data-layer="add-square" class="AddSquare" style="left: 1333px; top: 34px; position: absolute">
-      <a href="upload.php" class="AddSquare" style="left: 0; top: 0; position: absolute; display: block;">
+      <a href="dashboard.php" class="AddSquare" style="left: 0; top: 0; position: absolute; display: block;">
         <img src="Assets/add-square.png" alt="Add Square" width="51" height="51">
       </a>
     </div>

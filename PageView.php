@@ -1,6 +1,16 @@
 <?php
 require_once 'testsql.php';
+session_start();
 
+if (!isset($_SESSION['uid'])) {
+    header("Location: index.php");
+    exit;
+}
+
+// Ambil data session 
+$uid = $_SESSION['uid'];
+$uname = $_SESSION['uname'];
+$fotoProfil = $_SESSION['fotoProfil'];
 
 //ambil data idVIdeo dari homepage.php
 $videoId = $_GET['id'] ?? null;
@@ -43,9 +53,7 @@ $jumlahLike = $dataLikes['likes'] ?? 0;
 $jumlahDislike = $dataLikes['dislikes'] ?? 0;
 
 // Simulasi id user yang sedang login
-$userId = 2;
-
-
+$userId = $uid;
 
 // Simulasi lama menonton default
 $lamaMenonton = 0;
@@ -63,7 +71,7 @@ if ($stmtCheck === false) {
 if (!sqlsrv_fetch_array($stmtCheck)) {
     // Belum ada → INSERT
     $sqlInsertView = "INSERT INTO Tonton (idVideo, idUser, lamaMenonton, likeDislike) VALUES (?, ?, ?, ?)";
-    $paramsInsert = [$videoId, $userId, $lamaMenonton, $likeDislike];
+    $paramsInsert = [$videoId, $uid, $lamaMenonton, $likeDislike];
     $resultInsert = sqlsrv_query($conn, $sqlInsertView, $paramsInsert);
 
     if ($resultInsert === false) {
@@ -286,11 +294,14 @@ function waktu_berlalu($tanggal)
         <div data-layer="Navigations/SearchBox" class="NavigationsSearchbox"
             style="width: 470px; height: 40px; position: relative"></div>
     </div>
-    <img data-layer="MainProfile" class="Mainprofile"
-        style="width: 75px; height: 75px; left: 1415px; top: 22px; position: absolute; border-radius: 200px" <img
-        data-layer="MainProfile" class="Mainprofile"
-        style="width: 140px; height: 140px; left: 23px; top: 128px; position: absolute; border-radius: 200px"
-        src="Assets/MainProfile.jpg" alt="Foto Profil Utama">
+    <a href = "EditChannelInd.php">
+        <img data-layer="MainProfile" class="Mainprofile"
+            style="width: 75px; height: 75px; left: 1415px; top: 22px; position: absolute; border-radius: 200px" <img
+            data-layer="MainProfile" class="Mainprofile"
+            style="width: 140px; height: 140px; left: 23px; top: 128px; position: absolute; border-radius: 200px"
+            src="<?= htmlspecialchars($fotoProfil) ?>" alt="Foto Profil Utama">
+    </a>
+
     <div data-layer="Uploader" class="Uploader"
         style="width: 239.88px; height: 43.66px; left: 129px; top: 880px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
         <?= htmlspecialchars($video['namaChannel']) ?>
@@ -495,7 +506,7 @@ function waktu_berlalu($tanggal)
 
     <div data-layer="MainProfile-Wrapper" class="MainProfile-Wrapper"
         style="left: 87px; top: 1428px; position: absolute;">
-        <img data-layer="MainProfile" class="MainProfile-Image" src="<?= $fotoProfilUser ?>" alt="Foto Profil Anda"
+        <img data-layer="MainProfile" class="MainProfile-Image" src="<?= $fotoProfil ?>" alt="Foto Profil Anda"
             style="width: 40px; height: 40px; border-radius: 50%;">
     </div>
 

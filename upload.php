@@ -1,5 +1,29 @@
 <?php
+session_start();
 require_once 'testsql.php'; // koneksi ke SQL Server
+
+$uid = $_SESSION['uid'];
+$sql = "SELECT 
+            C.fotoProfil, 
+            A.ChannelID 
+        FROM Users U
+        INNER JOIN [Admin] A ON A.UserID = U.Id
+        INNER JOIN Channel C ON C.idChannel = A.ChannelID
+        WHERE U.id = ?";
+
+$params = [$uid];
+$stmt = sqlsrv_query($conn, $sql, $params);
+
+if ($stmt && sqlsrv_has_rows($stmt)) {
+    $channelInfo = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    // akses seperti: $channelInfo['namaChannel'], $channelInfo['Email'], dst
+} else {
+    echo "Channel tidak ditemukan atau tidak ada admin terkait.";
+}
+
+$fotoProfil = $channelInfo['fotoProfil'];
+$channelID = $channelInfo['ChannelID'];
+
 
 // Tangani proses upload jika ada request POST dan file
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["file"])) {
@@ -31,8 +55,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["file"])) {
         $videoTitle = $_POST['video_title'] ?? $filename;
         $videoDesc = $_POST['video_description'] ?? '';
 
-        $sql = "INSERT INTO Videos (title, description, path, thumbnail, idChannel) VALUES (?, ?, ?, ?, 1)";
-        $params = [$videoTitle, $videoDesc, $targetFile, $thumbnailPath];
+        $sql = "INSERT INTO Videos (title, description, path, thumbnail, idChannel) VALUES (?, ?, ?, ?, ?)";
+        $params = [$videoTitle, $videoDesc, $targetFile, $thumbnailPath, $channelID];
 
 
         $stmt = sqlsrv_query($conn, $sql, $params);
@@ -139,7 +163,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["file"])) {
                         fill="black" />
                 </svg>
             </div>
-</a>
+        </a>
         <div data-svg-wrapper data-layer="Vector 2" class="Vector2"
             style="left: 1401px; top: 149px; position: absolute">
             <svg width="3" height="2" viewBox="0 0 3 2" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -149,7 +173,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["file"])) {
 
         <img data-layer="MainProfile" class="Mainprofile"
             style="width: 140px; height: 140px; left: 23px; top: 128px; position: absolute; border-radius: 200px"
-            src="Assets/MainProfile.jpg" alt="Foto Profil Utama">
+            src="<?= htmlspecialchars($fotoProfil) ?>" alt="Foto Profil Utama">
 
         <div data-layer="Rectangle 10" class="Rectangle10"
             style="width: 1172px; height: 322px; left: 197px; top: 268px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
@@ -298,7 +322,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["file"])) {
             style="left: 572px; top: 716px; position: absolute; opacity: 0.28; justify-content: center; display: flex; flex-direction: column; color: white; font-size: 14px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
             Size</div>
     </div>
-    <!-- <script>
+    <script>
         function previewThumbnail(event) {
             const input = event.target;
             const preview = document.getElementById('thumbnailPreview');
@@ -314,7 +338,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["file"])) {
                 reader.readAsDataURL(input.files[0]);
             }
         }
-    </script> -->
+    </script>
 
 </body>
 

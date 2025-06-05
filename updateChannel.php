@@ -128,13 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['updateChannel'])) {
                 style="color: black; font-size: 32px; font-family: Roboto; font-weight: 400; text-decoration: underline; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
                 @email.com</span>
         </div>
-        <div data-svg-wrapper data-layer="edit-01" class="Edit01" style="left: 1055px; top: 233px; position: absolute">
-            <svg width="43" height="43" viewBox="0 0 43 43" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                    d="M24.866 6.64193C26.965 4.54286 30.3683 4.54286 32.4674 6.64193L36.3581 10.5327C38.4572 12.6317 38.4572 16.035 36.3581 18.1341L20.4505 34.0417H37.625C38.6145 34.0417 39.4167 34.8438 39.4167 35.8334C39.4167 36.8229 38.6145 37.625 37.625 37.625H7.16667C6.17716 37.625 5.375 36.8229 5.375 35.8334V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.64193ZM15.3829 34.0417L29.7162 19.7084L23.2917 13.2838L8.95833 27.6172V34.0417H15.3829ZM25.8255 10.75L32.25 17.1746L33.8243 15.6003C34.524 14.9006 34.524 13.7662 33.8243 13.0665L29.9336 9.17573C29.2339 8.47604 28.0995 8.47604 27.3998 9.17573L25.8255 10.75Z"
-                    fill="black" />
-            </svg>
-        </div>
+
         <div data-layer="Rectangle 9" class="Rectangle9"
             style="width: 582px; height: 77px; left: 457px; top: 218px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
         </div>
@@ -150,13 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['updateChannel'])) {
         <div data-layer="Rectangle 13" class="Rectangle13"
             style="width: 999px; height: 188px; left: 257px; top: 765px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
         </div>
-        <div data-svg-wrapper data-layer="edit-03" class="Edit03" style="left: 301px; top: 284px; position: absolute">
-            <svg width="43" height="43" viewBox="0 0 43 43" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                    d="M24.866 6.64193C26.965 4.54286 30.3683 4.54286 32.4674 6.64193L36.3581 10.5327C38.4572 12.6317 38.4572 16.035 36.3581 18.1341L17.3919 37.1003C17.0559 37.4363 16.6002 37.625 16.125 37.625H7.16667C6.17716 37.625 5.375 36.8229 5.375 35.8334V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.64193ZM29.9336 9.17573C29.2339 8.47604 28.0995 8.47604 27.3998 9.17573L25.8255 10.75L32.25 17.1746L33.8243 15.6003C34.524 14.9006 34.524 13.7662 33.8243 13.0665L29.9336 9.17573ZM29.7162 19.7084L23.2917 13.2838L8.95833 27.6172V34.0417H15.3829L29.7162 19.7084Z"
-                    fill="#E63C3C" />
-            </svg>
-        </div>
+
         <div data-layer="Rectangle 5" class="Rectangle5"
             style="width: 99px; height: 43px; left: 1142px; top: 236px; position: absolute; background: #795757; border-radius: 11px">
         </div>
