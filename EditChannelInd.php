@@ -16,6 +16,7 @@ $sql = "SELECT
             C.namaChannel, 
             C.deskripsi, 
             C.fotoProfil, 
+            C.channelType,
             U.Email,
             A.idChannel,
             R.RoleName
@@ -28,6 +29,7 @@ $sql = "SELECT
 $params = [$uid];
 $stmt = sqlsrv_query($conn, $sql, $params);
 $canEdit = true;
+$isGroup = true;
 if ($stmt && sqlsrv_has_rows($stmt)) {
     $channelInfo = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
     $usernameLama = $channelInfo['namaChannel'];
@@ -35,6 +37,9 @@ if ($stmt && sqlsrv_has_rows($stmt)) {
     $fotoLama = $channelInfo['fotoProfil'];
     $deskripsiLama = $channelInfo['deskripsi'] ?? '';
     $channelID = $channelInfo['idChannel'];
+    if ($channelInfo['channelType'] == 0) {
+        $isGroup = false;
+    }
 } else {
     // echo "Channel tidak ditemukan atau tidak ada admin terkait.";
     $usernameLama = "Tidak Ditemukan";
@@ -45,20 +50,23 @@ if ($stmt && sqlsrv_has_rows($stmt)) {
 }
 
 if (isset($_SESSION['uid'])) {
-    
-    $sql = "
-    SELECT A.idChannel
+
+    $sql = "SELECT *
     FROM Admin A
-    WHERE A.idUser = ? AND (idRole = 1 OR idRole = 2 OR idRole = 3) 
+    WHERE A.idUser = ? AND 
+    (idRole = (SELECT idRole FROM Roles WHERE RoleName = 'Owner') OR 
+    idRole = (SELECT idRole FROM Roles WHERE RoleName = 'Manager') OR 
+    idRole = (SELECT idRole FROM Roles WHERE RoleName = 'Editor')) 
     ";
     $stmt = sqlsrv_query($conn, $sql, [$uid]);
-    
+
     if ($stmt && sqlsrv_has_rows($stmt)) {
         $isAdmin = true; // User sudah jadi admin
     } else {
         $deskripsiLama = "Anda Tidak Diperkenankan Mengedit Channel Ini !";
         $canEdit = false;
     }
+
 }
 ?>
 <!DOCTYPE html>
@@ -95,11 +103,13 @@ if (isset($_SESSION['uid'])) {
                 Upload
             </a>
 
-            <a href="updateChannel.php" style="display: inline-block; width: 104px; height: 43px; left: 959px; top: 159px; position: absolute; 
+            <?php if ($isGroup): ?>
+                <a href="updateChannel.php" style="display: inline-block; width: 104px; height: 43px; left: 959px; top: 159px; position: absolute; 
           background: #795757; border-radius: 12px; text-align: center; line-height: 43px; color: white; 
           text-decoration: none; font-family: Inter; font-size: 14px;">
-                Manage Admin
-            </a>
+                    Manage Admin
+                </a>
+            <?php endif; ?>
         <?php endif; ?>
 
 
@@ -223,8 +233,8 @@ if (isset($_SESSION['uid'])) {
                 <textarea name="deskripsi"
                     style="width: 960px; height: 370px; left: 257px; top: 547px; position: absolute; opacity: 0.9; 
     background:rgb(119, 94, 94); border-radius: 26px; color: white; font-size: 18px; padding: 20px; border: none; resize: none;">
-                            <?= htmlspecialchars($deskripsiLama) ?>
-                            </textarea>
+                                                <?= htmlspecialchars($deskripsiLama) ?>
+                                                </textarea>
             </form>
         <?php else: ?>
             <input type="text" name="username" value="<?= htmlspecialchars($usernameLama) ?>" readonly style="width: 537px; height: 60px; left: 656px; top: 237px; position: absolute; opacity: 0.9; 
@@ -235,8 +245,8 @@ if (isset($_SESSION['uid'])) {
             <textarea name="deskripsi" readonly
                 style="width: 960px; height: 370px; left: 257px; top: 547px; position: absolute; opacity: 0.9; 
     background:rgb(119, 94, 94); border-radius:     26px; color: white; font-size: 18px; padding: 20px; border: none; resize: none;">
-                            <?= htmlspecialchars($deskripsiLama) ?>
-                            </textarea>
+                                                <?= htmlspecialchars($deskripsiLama) ?>
+                                                </textarea>
         <?php endif; ?>
 
 

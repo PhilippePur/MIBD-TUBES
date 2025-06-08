@@ -115,7 +115,7 @@ function getWatchTime($videoId)
     $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
     sqlsrv_close($conn);
     // diasumsikan watch time dalam menit, dikonversi ke jam (jika perlu)
-    return isset($row['total_watchtime']) ? $row['total_watchtime'] / 3600 : 0;
+    return isset($row['total_watchtime']) ? $row['total_watchtime'] / 1 : 0;
 }
 function getLikes($videoId)
 {
@@ -343,7 +343,7 @@ function getComments($videoId)
                 <?= number_format($likes) ?>
             </div>
 
-            <?php if ($RoleName == "Owner" || $RoleName == "Manager" || $RoleName == 'Editor'): ?>
+            <?php if ($RoleName == "Owner" || $RoleName == "Manager" || $RoleName == 'Admin'): ?>
                 <!-- Komentar -->
                 <a href="KomenFilter.php?id=<?= htmlspecialchars($video['idVideo']) ?>" class="Komentar"
                     style="width: 126px; height: 28px; left: 1384px; top: <?= $top + 69 ?>px; position: absolute; color: black; font-size: 20px; font-family: Roboto; ">
@@ -357,18 +357,18 @@ function getComments($videoId)
 
             <?php endif; ?>
 
-
-
-            <!-- Tombol Edit -->
-            <div class='Edit03' style='left: 1457px; top: <?= $top + 57 ?>px; position: absolute'>
-                <a href='EditKonten.php?id=<?= htmlspecialchars(string: $video['idVideo']) ?>'>
-                    <svg width='43' height='43' viewBox='0 0 43 43' fill='none' xmlns='http://www.w3.org/2000/svg'>
-                        <path fill-rule='evenodd' clip-rule='evenodd'
-                            d='M24.866 6.6419C26.965 4.54283 30.3683 4.54283 32.4674 6.6419L36.3581 10.5326C38.4572 12.6317 38.4572 16.035 36.3581 18.134L17.3919 37.1002C17.0559 37.4362 16.6002 37.625 16.125 37.625H7.16667C6.17716 37.625 5.375 36.8228 5.375 35.8333V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.6419ZM29.9336 9.1757C29.2339 8.47601 28.0995 8.47601 27.3998 9.1757L25.8255 10.75L32.25 17.1745L33.8243 15.6002C34.524 14.9005 34.524 13.7661 33.8243 13.0664L29.9336 9.1757ZM29.7162 19.7083L23.2917 13.2838L8.95833 27.6171V34.0417H15.3829L29.7162 19.7083Z'
-                            fill='#858080' />
-                    </svg>
-                </a>
-            </div>
+            <?php if ($RoleName == "Owner" || $RoleName == "Manager" || $RoleName == 'Editor' || $RoleName == 'Subtitle Editor'): ?>
+                <!-- Tombol Edit -->
+                <div class='Edit03' style='left: 1457px; top: <?= $top + 57 ?>px; position: absolute'>
+                    <a href='EditKonten.php?id=<?= htmlspecialchars(string: $video['idVideo']) ?>'>
+                        <svg width='43' height='43' viewBox='0 0 43 43' fill='none' xmlns='http://www.w3.org/2000/svg'>
+                            <path fill-rule='evenodd' clip-rule='evenodd'
+                                d='M24.866 6.6419C26.965 4.54283 30.3683 4.54283 32.4674 6.6419L36.3581 10.5326C38.4572 12.6317 38.4572 16.035 36.3581 18.134L17.3919 37.1002C17.0559 37.4362 16.6002 37.625 16.125 37.625H7.16667C6.17716 37.625 5.375 36.8228 5.375 35.8333V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.6419ZM29.9336 9.1757C29.2339 8.47601 28.0995 8.47601 27.3998 9.1757L25.8255 10.75L32.25 17.1745L33.8243 15.6002C34.524 14.9005 34.524 13.7661 33.8243 13.0664L29.9336 9.1757ZM29.7162 19.7083L23.2917 13.2838L8.95833 27.6171V34.0417H15.3829L29.7162 19.7083Z'
+                                fill='#858080' />
+                        </svg>
+                    </a>
+                </div>
+            <?php endif; ?>
 
             <?php
             $top += $increment;

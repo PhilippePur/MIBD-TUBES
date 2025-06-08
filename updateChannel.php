@@ -109,7 +109,7 @@ while ($row = sqlsrv_fetch_array($adminListStmt, SQLSRV_FETCH_ASSOC)) {
     $adminList[] = $row;
 }
 
-// Query to get invited admins (IsActive = 3)
+// Query to get invited admins (IsActive = 2)
 $invitedAdminSql = "SELECT U.fotoProfil, U.Username, R.RoleName, U.email
                     FROM Admin A
                     INNER JOIN Users U ON A.idUser = U.idUser
@@ -281,9 +281,9 @@ while ($row = sqlsrv_fetch_array($invitedAdminStmt, SQLSRV_FETCH_ASSOC)) {
                             if ($admin['IsActive'] == 1) {
                                 $status = 'Active';
                             } else if ($admin['IsActive'] == 2) {
-                                $status = 'Inactive';
+                                $status = 'Invited-Pending';
                             } else {
-                                $status = 'Unknown';
+                                $status = 'Inactive';
                             }
                         }
                         echo $status;

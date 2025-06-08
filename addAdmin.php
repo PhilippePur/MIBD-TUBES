@@ -53,7 +53,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $newUserId = $userData['idUser'];
 
     // Cek apakah user tersebut sudah admin di channel ini
-    $checkAdminSql = "SELECT * FROM Admin WHERE idUser = ? AND idChannel = ?";
+    $checkAdminSql = "SELECT * FROM Admin WHERE idUser = ?";
     $stmtAdminCheck = sqlsrv_query($conn, $checkAdminSql, [$newUserId, $channelID]);
 
     if (sqlsrv_has_rows($stmtAdminCheck)) {
@@ -198,7 +198,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <option value="">Pilih Role</option>
                 <option value="2">Manager</option>
                 <option value="3">Editor</option>
+                <option value="4">Admin</option>
                 <option value="5">Subtitle Editor</option>
+                <option value="6">Viewer</option>
             </select>
 
             <!-- Tombol Submit -->

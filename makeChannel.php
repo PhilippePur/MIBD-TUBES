@@ -46,10 +46,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-    $newChannelID = $row['idChannel'];
+    $newChannelID = $row['IdChannel'];
 
     $RoleOwner = 1;
-    $sqlOWner = "SELECT idRole FROM [Admin] WHERE RoleName = 'Owner";
+    $sqlOWner = "SELECT A.idRole FROM [Admin] A INNER JOIN Roles R ON A.idRole = R.idRole WHERE RoleName = 'Owner' ";
     $stmtOwner = sqlsrv_query($conn, $sqlOWner);
 
     if ($stmtOwner && ($rowOwner = sqlsrv_fetch_array($stmtOwner, SQLSRV_FETCH_ASSOC))) {

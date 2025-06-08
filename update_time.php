@@ -2,16 +2,15 @@
 require_once 'testsql.php';
 session_start();
 
-$videoId = $_POST['idVideo'] ?? null;
+$videoId = $_POST['video_id'] ?? null;
 $watchingTime = $_POST['watching_time'] ?? null;
-$userId = $_SESSION['uid'];; // ganti sesuai sistem login
-
+$userId = $_SESSION['uid'];;
 if (!$videoId || !is_numeric($watchingTime)) {
     exit('Data tidak lengkap atau salah');
 }
 
 $sql = "SELECT * FROM Tonton WHERE idVideo = ? AND idUser = ?";
-$stmt = sqlsrv_query($conn, $sql, [$videoId, $userId]);
+$stmt = sqlsrv_query($conn, $sql, params: [$videoId, $userId]);
 if ($stmt === false) {
     die(print_r(sqlsrv_errors(), true));
 }

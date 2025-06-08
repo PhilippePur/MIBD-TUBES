@@ -172,13 +172,6 @@ $channelID = $channelInfo['idChannel'];
         <div data-layer="Rectangle 15" class="Rectangle15"
             style="width: 330px; height: 176px; left: 969px; top: 673px; position: absolute; background: #D9D9D9"></div>
 
-        <div data-layer="NamaFile" class="Namafile"
-            style="left: 574px; top: 679px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: white; font-size: 32px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            NamaFile</div>
-        <div data-layer="Size" class="Size"
-            style="left: 574px; top: 708px; position: absolute; opacity: 0.28; justify-content: center; display: flex; flex-direction: column; color: white; font-size: 14px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Size</div>
-
 
         <form action="proses_edit_video.php" method="POST" enctype="multipart/form-data" id="editForm">
             <input type="hidden" name="id" value="<?= $video['idVideo'] ?>">
@@ -234,7 +227,7 @@ $channelID = $channelInfo['idChannel'];
 
             <!-- Tombol Arsipkan -->
             <button type="submit" name="arsipkan"
-                style="width: 163.56px; height: 68px; left: 1018px; top: 900px; position: absolute; background: #FF3636; border-radius: 23px; border: none; color: white; font-size: 24px; cursor: pointer;">
+                style="width: 163.56px; height: 68px; left: 1018px; top: 905px; position: absolute; background: #FF3636; border-radius: 23px; border: none; color: white; font-size: 24px; cursor: pointer;">
                 Arsipkan
             </button>
 

@@ -28,6 +28,30 @@ if (isset($_SESSION['uid'])) {
   }
 }
 
+$subs = [];
+if (isset($_SESSION['uid'])) {
+  $userId = $_SESSION['uid'];
+
+  $query = "
+        SELECT C.fotoProfil, C.namaChannel 
+        FROM Users U 
+        INNER JOIN Subscribe S ON U.idUser = S.idUser 
+        INNER JOIN Channel C ON C.idChannel = S.idChannel 
+        WHERE U.idUser = ? 
+        ORDER BY tanggalSubscribe ASC
+    ";
+  $stmt = sqlsrv_query($conn, $query, [$userId]);
+  while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+    $subs[] = $row;
+  }
+}
+
+
+
+$sqlCount = "SELECT COUNT(idVideo) as Count FROM Videos WHERE isActive = 1";
+$stmtCount = sqlsrv_query($conn, $sqlCount);
+$rowCount = sqlsrv_fetch_array($stmtCount, SQLSRV_FETCH_ASSOC);
+$totalVideos = $rowCount['Count'] ?? 0;
 
 
 $sql = "SELECT 
@@ -48,23 +72,26 @@ $sql = "SELECT
         ORDER BY V.idVideo ASC";
 
 $result = sqlsrv_query($conn, $sql);
+$rowsNeeded = ceil($totalVideos / 3);
+$height = max(982, 982 + ($rowsNeeded - 3) * 280);
 
 $videos = [];
 while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
   $videos[] = $row;
 }
 
-for ($i = 0; $i < 9; $i++):
-  $video = $videos[$i] ?? null;
+$left = [320, 734, 1148];
+$top = [183, 453, 723]; // hanya patokan awal
 
-  $left = [320, 734, 1148];
-  $top = [183, 453, 723];
-
+foreach ($videos as $i => $video):
   $x = $left[$i % 3] + 8;
-  $y = $top[floor($i / 3)] + 7;
+  $y = 183 + floor($i / 3) * 280; // Hitung top dinamis
 
-  $color = ['#EB4A4A', '#20EFAE', '#3C36FE', '#FF4BB7', '#2E412B', '#E1E63E', '#308120', '#37B8EF', '#AD45EA'][$i];
+  $color = ['#EB4A4A', '#20EFAE', '#3C36FE', '#FF4BB7', '#2E412B', '#E1E63E', '#308120', '#37B8EF', '#AD45EA'];
+  $bgColor = $color[$i % count($color)];
   ?>
+
+
   <?php if ($video): ?>
     <!-- Thumbnail -->
     <a href="PageView.php?id=<?= $video['idVideo'] ?>"
@@ -101,7 +128,7 @@ for ($i = 0; $i < 9; $i++):
       Tidak Ada Video
     </div>
   <?php endif; ?>
-<?php endfor; ?>
+<?php endforeach; ?>
 
 
 <!DOCTYPE html>
@@ -114,16 +141,30 @@ for ($i = 0; $i < 9; $i++):
 <body>
 
   <div data-layer="HomePage No Login" class="HomepageNoLogin"
-    style="width: 1512px; height: 982px; position: relative; background: white; overflow: hidden">
+    style="width: 1512px; height: <?= $height ?>px; position: relative; background: white; overflow: hidden">
 
-    <div data-layer="Frame 1" class="Frame1"
-      style="padding: 10px; left: -10px; top: -10px; position: absolute; justify-content: flex-start; align-items: center; gap: 10px; display: inline-flex">
-      <div data-svg-wrapper data-layer="SideBorder" class="Sideborder">
-        <svg width="251" height="982" viewBox="0 0 251 982" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M0 0H251V982H0V0Z" fill="#7E7E7E" />
-        </svg>
+    <div data-layer="SideBorder" class="Sideborder"
+      style="width: 251px; height: <?= $height ?>px; background-color: #7E7E7E;">
+      <div data-layer="Subscription" class="Subscription"
+        style="width: 126px; height: 28px; left: 12px; top: 418px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
+        Subscription</div>
+      <div style="position: absolute; left: 30px; top: 460px; width: 180px; max-height: 700px; overflow-y: auto;">
+        <?php if (empty($subs)): ?>
+        <?php else: ?>
+          <?php foreach ($subs as $sub): ?>
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <img src="<?= htmlspecialchars($sub['fotoProfil']) ?: 'Assets/NoProfile.jpg' ?>" alt="Foto Profil"
+                style="width: 30px; height: 30px; border-radius: 50%; margin-right: 10px;">
+              <span style="color: white; font-size: 14px; word-break: break-word;">
+                <?= htmlspecialchars($sub['namaChannel']) ?>
+              </span>
+            </div>
+          <?php endforeach; ?>
+        <?php endif; ?>
       </div>
+
     </div>
+
     <div data-layer="Frame 2" class="Frame2"
       style="width: 1519px; height: 132px; padding: 10px; left: 186px; top: -10px; position: absolute; justify-content: flex-start; align-items: center; gap: 10px; display: inline-flex">
       <div data-svg-wrapper data-layer="SideBorder" class="Sideborder">
@@ -266,9 +307,7 @@ for ($i = 0; $i < 9; $i++):
     <div data-layer="Subscription" class="Subscription"
       style="width: 126px; height: 28px; left: 85px; top: 179px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
       Subscription</div>
-    <div data-layer="Subscription" class="Subscription"
-      style="width: 126px; height: 28px; left: 12px; top: 418px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 20px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-      Subscription</div>
+
     <div data-layer="History" class="History"
       style="width: 126px; height: 28px; left: 82px; top: 281px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
       History</div>

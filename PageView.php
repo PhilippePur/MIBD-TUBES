@@ -61,7 +61,7 @@ $lamaMenonton = 0;
 // 0 = tidak memilih , 1 = like, 2 = dislike
 $likeDislike = 0;
 
-$sqlCheck = "SELECT COUNT(idUSer) FROM Tonton WHERE idVideo = ? AND idUser = ?";
+$sqlCheck = "SELECT 1 FROM Tonton WHERE idVideo = ? AND idUser = ?";
 $stmtCheck = sqlsrv_query($conn, $sqlCheck, [$videoId, $userId]);
 
 if ($stmtCheck === false) {
@@ -79,7 +79,7 @@ if (!sqlsrv_fetch_array($stmtCheck)) {
     }
 } else {
     // Sudah ada → bisa update lamaMenonton jika perlu
-    $sqlUpdateView = "UPDATE Tonton SET lamaMenonton = lamaMenonton + ?, jumlahTonton = jumlahTonton + 1 WHERE idVideo = ? AND idUser = ?";
+    $sqlUpdateView = "UPDATE Tonton SET lamaMenonton = lamaMenonton + ? WHERE idVideo = ? AND idUser = ?";
     $resultUpdate = sqlsrv_query($conn, $sqlUpdateView, [$lamaMenonton, $videoId, $userId]);
 
     if ($resultUpdate === false) {
@@ -256,7 +256,7 @@ function waktu_berlalu($tanggal)
         </div>
 
         <!-- Waktu -->
-        <div style="width: 179px; height: 27px; left: 222px; top: <?= $topWaktu ?>px; position: absolute; 
+        <div style="width: 179px; height: 27px; left: 245px; top: <?= $topWaktu ?>px; position: absolute; 
     justify-content: center; display: flex; flex-direction: column; color: black; font-size: 12px; 
     font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word;">
             <?= $waktu ?>
@@ -471,7 +471,7 @@ function waktu_berlalu($tanggal)
     </div>
 
     <div id="subsBtn" onclick="toggleSubscribe(<?= $video['idChannel'] ?>)"
-        style="width: 179px; height: 48px; left: 261px; top: 895px; position: absolute; 
+        style="width: 179px; height: 48px; left: 371px; top: 880px; position: absolute; 
      background: <?= $sudahSubscribe ? '#D9D9D9' : '#d11111' ?>; 
      border-radius: 139px; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;">
         <?= $sudahSubscribe ? 'SUBSCRIBED' : 'SUBSCRIBE' ?>
