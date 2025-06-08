@@ -2,7 +2,7 @@
 require_once 'testsql.php';
 session_start();
 
-$id = $_POST['id'];
+$idVideo = $_POST['id'];
 $title = $_POST['title'];
 $description = $_POST['description'];
 $isActive = isset($_POST['arsipkan']) ? 0 : 1;
@@ -35,8 +35,8 @@ if ($videoPath) {
     $params[] = $videoPath;
 }
 
-$sql .= " WHERE id = ?";
-$params[] = $id;
+$sql .= " WHERE idVideo = ?";
+$params[] = $idVideo;
 
 $stmt = sqlsrv_query($conn, $sql, $params);
 

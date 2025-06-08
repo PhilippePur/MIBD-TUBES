@@ -27,11 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['idKomen'])) {
 // --- Bagian Filter dan Pengambilan Data Komentar ---
 $keyword = $_GET['keyword'] ?? '';
 $date = $_GET['date'] ?? '';
-$channelID = $_GET['channel_id'] ?? '';
+$channelID = $_GET['idChannel'] ?? '';
 $videoId = $_GET['id'] ?? ''; // ID video dari dashboard.php
 
 if (!empty($videoId) && filter_var($videoId, FILTER_VALIDATE_INT)) {
-    $sqlVideo = "SELECT title AS videoTitle, thumbnail, uploaded_at FROM Videos WHERE id = ?";
+    $sqlVideo = "SELECT title AS videoTitle, thumbnail, uploaded_at FROM Videos WHERE idVideo = ?";
     $stmtVideo = sqlsrv_query($conn, $sqlVideo, [$videoId]);
 
     if ($stmtVideo && $videoRow = sqlsrv_fetch_array($stmtVideo, SQLSRV_FETCH_ASSOC)) {
@@ -56,7 +56,7 @@ SELECT
     U.Username AS userUsername,
     U.fotoProfil AS userFotoProfil
 FROM Komen K
-JOIN Users U ON K.idUser = U.Id
+JOIN Users U ON K.idUser = U.idUser
 WHERE K.isActive = 1
 ";
 
@@ -432,7 +432,7 @@ $offset = $totalComments * 250;
             $komenText = $row['komen'];
             $commentDate = $row['tanggal']->format('H:i  F d, Y');
             $userName = $row['userUsername'] ?? 'Unknown User';
-            $userProfilePic = $row['userFotoProfil'] ?? 'Assets/NoProfile.jpg';
+            $userProfilePic = $row['userFotoProfil'] ?? 'Assets/NoProfile.jpg'; 
             ?>
             <div class="comment-card" style="top: <?php echo $currentTopPosition; ?>px;">
 

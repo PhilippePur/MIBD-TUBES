@@ -14,7 +14,7 @@ $videoId = isset($_GET['id']) ? $_GET['id'] : null;
 // Ambil data video
 $video = null;
 if ($videoId) {
-    $sql = "SELECT id, title, description, thumbnail, path FROM Videos WHERE id = ?";
+    $sql = "SELECT idVideo, title, description, thumbnail, path FROM Videos WHERE idVideo = ?";
     $stmt = sqlsrv_query($conn, $sql, array($videoId));
 
     if ($stmt !== false && $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
@@ -35,14 +35,15 @@ $pathVideo = $row['path'];
 // Ambil informasi channel dan email user yang sedang login
 $sqlChannel = "SELECT C.namaChannel, C.deskripsi, C.fotoProfil, U.Email, C.idChannel 
                FROM Users U 
-               INNER JOIN [Admin] A ON A.UserID = U.Id 
-               INNER JOIN Channel C ON C.idChannel = A.ChannelID 
-               WHERE U.Id = ?";
+               INNER JOIN [Admin] A ON A.idUser = U.idUser 
+               INNER JOIN Channel C ON C.idChannel = A.idChannel 
+               WHERE U.idUser = ?";
 $stmtChannel = sqlsrv_query($conn, $sqlChannel, array($uid));
 
 $channelInfo = sqlsrv_fetch_array($stmtChannel, SQLSRV_FETCH_ASSOC);
 $fotoProfil = $channelInfo['fotoProfil'];
 $channelID = $channelInfo['idChannel'];
+
 ?>
 
 <!DOCTYPE html>
@@ -180,7 +181,7 @@ $channelID = $channelInfo['idChannel'];
 
 
         <form action="proses_edit_video.php" method="POST" enctype="multipart/form-data" id="editForm">
-            <input type="hidden" name="id" value="<?= $video['id'] ?>">
+            <input type="hidden" name="id" value="<?= $video['idVideo'] ?>">
 
             <!-- Input video baru -->
             <input type="file" name="video_path" id="videoInput" accept="video/*" style="display: none;">

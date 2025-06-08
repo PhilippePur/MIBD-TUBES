@@ -2,13 +2,73 @@
 session_start();
 require_once 'testsql.php'; // Koneksi SQL Server
 
-// Menampilkan data Admin
-$sql = "SELECT * FROM [Admin]";
-$stmt = sqlsrv_query($conn, $sql);
+// Ambil user ID dari session
+$userId = $_SESSION['uid'] ?? null;
+
+if ($userId === null) {
+    die("User belum login.");
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggleActiveAdmin'])) {
+    $toggleUserId = $_POST['toggleUserId'] ?? null;
+    $currentStatus = $_POST['currentStatus'] ?? null;
+    if ($toggleUserId !== null && $currentStatus !== null) {
+        // Set IsActive explicitly based on currentStatus
+        if ($currentStatus == 1) {
+            $newStatus = 3; // deactivate
+        } else if ($currentStatus == 3) {
+            $newStatus = 1; // activate
+        } else {
+            $newStatus = 1; // default to active
+        }
+        $updateToggleSql = "UPDATE Admin SET IsActive = ? WHERE idUser = ? AND idChannel = (SELECT idChannel FROM Admin WHERE idUser = ?)";
+        $params = [$newStatus, $toggleUserId, $userId];
+        $stmt = sqlsrv_query($conn, $updateToggleSql, $params);
+        if ($stmt === false) {
+            die("Gagal mengubah status admin: " . print_r(sqlsrv_errors(), true));
+        } else {
+            // Redirect to avoid form resubmission
+            header("Location: updateChannel.php");
+            exit();
+        }
+    }
+}
+
+// Prepare list of admins for selection in deactivate form
+$selectAdminSql = "SELECT U.Username, A.idUser
+                   FROM Admin A
+                   INNER JOIN Users U ON A.idUser = U.idUser
+                   WHERE A.idChannel = (SELECT idChannel FROM Admin WHERE idChannel = ?)
+                   AND A.IsActive IN (1, 2)";
+$selectAdminParams = [$userId];
+$selectAdminStmt = sqlsrv_query($conn, $selectAdminSql, $selectAdminParams);
+
+$selectAdminList = [];
+if ($selectAdminStmt !== false) {
+    while ($row = sqlsrv_fetch_array($selectAdminStmt, SQLSRV_FETCH_ASSOC)) {
+        $selectAdminList[] = $row;
+    }
+}
+
+// Query untuk mendapatkan data user dan channel terkait
+$sql = "SELECT U.fotoProfil AS userFotoProfil, C.namaChannel, C.fotoProfil AS channelFotoProfil, U.Email
+        FROM Users U
+        INNER JOIN Admin A ON U.idUser = A.idUser
+        INNER JOIN Channel C ON A.idChannel = C.idChannel
+        WHERE U.idUser = ?";
+$params = [$userId];
+$stmt = sqlsrv_query($conn, $sql, $params);
 
 if ($stmt === false) {
-    die("Error saat mengambil data: " . print_r(sqlsrv_errors(), true));
+    die("Error saat mengambil data user dan channel: " . print_r(sqlsrv_errors(), true));
 }
+
+$userData = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+
+$userFotoProfil = $userData['userFotoProfil'] ?? 'Assets/NoProfile.jpg';
+$channelFotoProfil = $userData['channelFotoProfil'] ?? 'Assets/NoProfile.jpg';
+$namaChannel = $userData['namaChannel'] ?? 'Nama Channel';
+$displayName = $userData['Email'] ?? 'email@example.com';
 
 // Proses update nama channel
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['updateChannel'])) {
@@ -29,6 +89,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['updateChannel'])) {
         $message = "ID Channel dan Nama Channel harus diisi.";
     }
 }
+
+// Ambil daftar admin untuk channel user
+$adminListSql = "SELECT U.fotoProfil, U.Username, R.RoleName, A.IsActive, A.idUser
+                 FROM Admin A
+                 INNER JOIN Users U ON A.idUser = U.idUser
+                 INNER JOIN Roles R ON A.idRole = R.idRole
+                 WHERE A.idChannel = (SELECT idChannel FROM Admin WHERE idUser = ?)
+                 AND A.IsActive IN (1, 3)";
+$adminListParams = [$userId];
+$adminListStmt = sqlsrv_query($conn, $adminListSql, $adminListParams);
+
+if ($adminListStmt === false) {
+    die("Error saat mengambil daftar admin: " . print_r(sqlsrv_errors(), true));
+}
+
+$adminList = [];
+while ($row = sqlsrv_fetch_array($adminListStmt, SQLSRV_FETCH_ASSOC)) {
+    $adminList[] = $row;
+}
+
+// Query to get invited admins (IsActive = 3)
+$invitedAdminSql = "SELECT U.fotoProfil, U.Username, R.RoleName, U.email
+                    FROM Admin A
+                    INNER JOIN Users U ON A.idUser = U.idUser
+                    INNER JOIN Roles R ON A.idRole = R.idRole
+                    WHERE A.idChannel = (SELECT idChannel FROM Admin WHERE idUser = ?)
+                    AND A.IsActive = 2";
+$invitedAdminParams = [$userId];
+$invitedAdminStmt = sqlsrv_query($conn, $invitedAdminSql, $invitedAdminParams);
+
+if ($invitedAdminStmt === false) {
+    die("Error saat mengambil daftar admin yang diundang: " . print_r(sqlsrv_errors(), true));
+}
+
+$invitedAdminList = [];
+while ($row = sqlsrv_fetch_array($invitedAdminStmt, SQLSRV_FETCH_ASSOC)) {
+    $invitedAdminList[] = $row;
+}
 ?>
 
 <!DOCTYPE html>
@@ -41,9 +139,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['updateChannel'])) {
 
 <body>
     <div data-layer="Update Channel" class="UpdateChannel"
-        style="width: 1512px; height: 1009px; position: relative; background: white; overflow: hidden">
+        style="width: 1512px; height: 1509px; position: relative; background: white; overflow: hidden">
         <div data-layer="Rectangle 8" class="Rectangle8"
-            style="width: 1118px; height: 967px; left: 197px; top: 132px; position: absolute; background: #D9D9D9; border-radius: 101px">
+            style="width: 1118px; height: 1067px; left: 197px; top: 132px; position: absolute; background: #D9D9D9; border-radius: 101px">
         </div>
         <a href="homepage.php" data-layer="Youtube-Logo" class="YoutubeLogo"
             style="width: 204px; height: 45px; left: 43px; top: 42px; position: absolute; overflow: hidden">
@@ -116,120 +214,121 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['updateChannel'])) {
                 </svg>
             </div>
         </a>
+
+
         <img data-layer="MainProfile" class="Mainprofile"
             style="width: 140px; height: 140px; left: 301px; top: 187px; position: absolute; border-radius: 200px"
-            src="Assets/MainProfile.jpg">
-        <div data-layer="dodo@email.com" class="DodoEmailCom"
-            style="width: 293px; height: 23px; left: 432px; top: 809px; position: absolute">
-            <span
-                style="color: black; font-size: 32px; font-family: Roboto; font-weight: 400; text-decoration: underline; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-                dodo</span>
-            <span
-                style="color: black; font-size: 32px; font-family: Roboto; font-weight: 400; text-decoration: underline; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-                @email.com</span>
-        </div>
+            src="<?php echo htmlspecialchars($channelFotoProfil); ?>">
 
         <div data-layer="Rectangle 9" class="Rectangle9"
             style="width: 582px; height: 77px; left: 457px; top: 218px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
         </div>
         <div data-layer="Rectangle 10" class="Rectangle10"
-            style="width: 999px; height: 282px; left: 257px; top: 377px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
+            style="width: 999px; height: 382px; left: 257px; top: 377px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
         </div>
         <div data-layer="Rectangle 12" class="Rectangle12"
-            style="width: 999px; height: 210px; left: 257px; top: 449px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
+            style="width: 999px; height: 310px; left: 257px; top: 449px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
         </div>
         <div data-layer="Rectangle 11" class="Rectangle11"
-            style="width: 999px; height: 262px; left: 257px; top: 691px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
+            style="width: 999px; height: 362px; left: 257px; top: 791px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
+        </div>
+        <div data-layer="Pending" class="Pending"
+            style="width: 999px; height: 28px; left: 280px; top: 825px; position: absolute; color: black; font-family: Roboto; font-weight: 700; font-size: 36px; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word;">
+            Pending
         </div>
         <div data-layer="Rectangle 13" class="Rectangle13"
-            style="width: 999px; height: 188px; left: 257px; top: 765px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
+            style="width: 999px; height: 288px; left: 257px; top: 865px; position: absolute; opacity: 0.36; background: #472323; border-radius: 26px">
         </div>
 
         <div data-layer="Rectangle 5" class="Rectangle5"
             style="width: 99px; height: 43px; left: 1142px; top: 236px; position: absolute; background: #795757; border-radius: 11px">
         </div>
-        <div data-layer="LogOut" class="Logout"
-            style="width: 129px; height: 23px; left: 1127px; top: 246px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: #FFF3F3; font-size: 14px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            LogOut</div>
+        <form method="post" action="logout.php" style="display:inline;">
+            <button type="submit" data-layer="LogOut" class="Logout"
+                style="width: 129px; height: 23px; left: 1127px; top: 246px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: #FFF3F3; font-size: 14px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word; background:none; border:none; cursor:pointer;">
+                LogOut
+            </button>
+        </form>
         <div data-layer="Admin List" class="AdminList"
-            style="width: 165px; height: 28px; left: 281px; top: 402px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Admin
-            List</div>
-        <div data-layer="Invited Pending" class="InvitedPending"
-            style="width: 196px; height: 28px; left: 276px; top: 716px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Invited
-            Pending</div>
-        <div data-layer="Manager" class="Manager"
-            style="width: 126px; height: 28px; left: 276px; top: 588px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Manager</div>
-        <div data-layer="Editor" class="Editor"
-            style="width: 126px; height: 28px; left: 401px; top: 864px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Editor</div>
-        <div data-layer="dodo" class="Dodo"
-            style="width: 126px; height: 28px; left: 289px; top: 892px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            dodo</div>
-        <div data-layer="Editor" class="Editor"
-            style="width: 126px; height: 28px; left: 443px; top: 588px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Editor</div>
-        <div data-layer="Editor (Limited)" class="EditorLimited"
-            style="width: 126px; height: 28px; left: 610px; top: 591px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 22px; letter-spacing: 0.40px; word-wrap: break-word">
-            Editor<br />(Limited)</div>
-        <div data-layer="20 May 2013" class="May2013"
-            style="width: 220px; height: 28px; left: 432px; top: 836px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            20
-            May 2013</div>
-        <div data-layer="Subtitle Editor" class="SubtitleEditor"
-            style="width: 126px; height: 28px; left: 777px; top: 596px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 22px; letter-spacing: 0.40px; word-wrap: break-word">
-            Subtitle
-            Editor</div>
-        <div data-layer="Subtitle Editor" class="SubtitleEditor"
-            style="width: 126px; height: 28px; left: 944px; top: 591px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 22px; letter-spacing: 0.40px; word-wrap: break-word">
-            Subtitle
-            Editor</div>
-        <div data-layer="Owner" class="Owner"
-            style="width: 126px; height: 28px; left: 1111px; top: 591px; position: absolute; text-align: center; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Owner</div>
-        <img data-layer="User1" class="User1"
-            style="width: 100px; height: 100px; left: 289px; top: 467px; position: absolute; border-radius: 200px"
-            src="Assets/User1.png">
-        <img data-layer="User1" class="User1"
-            style="width: 100px; height: 100px; left: 302px; top: 786px; position: absolute; border-radius: 200px"
-            src="Assets/User7.png">
-        <img data-layer="User2" class="User2"
-            style="width: 100px; height: 100px; left: 456px; top: 467px; position: absolute; border-radius: 200px"
-            src="Assets/User2.png">
-        <img data-layer="User3" class="User3"
-            style="width: 100px; height: 100px; left: 623px; top: 467px; position: absolute; border-radius: 200px"
-            src="Assets/User3.png">
-        <img data-layer="User4" class="User4"
-            style="width: 100px; height: 100px; left: 790px; top: 467px; position: absolute; border-radius: 200px"
-            src="Assets/User4.png">
-        <img data-layer="User5" class="User5"
-            style="width: 100px; height: 100px; left: 957px; top: 467px; position: absolute; border-radius: 200px"
-            src="Assets/User5.png">
-        <img data-layer="User6" class="User6"
-            style="width: 100px; height: 100px; left: 1124px; top: 467px; position: absolute; border-radius: 200px"
-            src="Assets/User6.png">
-        <div data-svg-wrapper data-layer="User1" class="User1" style="left: 417px; top: 396px; position: absolute">
-            <svg width="39" height="39" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="39" height="39" rx="19.5" fill="white" />
-            </svg>
+            style="width: 978px; height: 28px; left: 280px; top: 410px; position: absolute; color: black; font-family: Roboto; font-weight: 700; font-size: 36px; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word;">
+            Admin List
         </div>
-        <div data-svg-wrapper data-layer="edit-01" class="Edit01" style="left: 421px; top: 399px; position: absolute">
-            <svg width="31" height="31" viewBox="0 0 31 31" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                    d="M17.9266 4.78828C19.4399 3.275 21.8934 3.275 23.4067 4.78828L26.2117 7.59323C27.7249 9.10651 27.7249 11.56 26.2117 13.0733L14.7434 24.5416H27.125C27.8384 24.5416 28.4167 25.1199 28.4167 25.8333C28.4167 26.5466 27.8384 27.1249 27.125 27.1249H5.16667C4.4533 27.1249 3.875 26.5466 3.875 25.8333V19.3749C3.875 19.0324 4.01109 18.7038 4.25332 18.4616L17.9266 4.78828ZM11.09 24.5416L21.4233 14.2083L16.7917 9.57663L6.45833 19.91V24.5416H11.09ZM18.6184 7.74994L23.25 12.3816L24.385 11.2466C24.8894 10.7422 24.8894 9.92435 24.385 9.41992L21.58 6.61497C21.0756 6.11055 20.2577 6.11055 19.7533 6.61497L18.6184 7.74994Z"
-                    fill="black" />
-            </svg>
+
+        <a href="addAdmin.php" style="display: inline-block; width: 104px; height: 43px; left: 1130px; top: 390px; position: absolute; 
+          background: #795757; border-radius: 12px; text-align: center; line-height: 43px; color: white; 
+          text-decoration: none; font-family: Inter; font-size: 14px;">
+            Add Admin
+        </a>
+        <div data-layer="Admin List Content" class="AdminListContent"
+            style="width: 959px; height: 250px; left: 257px; top: 469px; position: absolute; justify-content: flex-start; display: flex; flex-direction: row; gap: 20px; color: black; font-size: 18px; font-family: Roboto; font-weight: 400; line-height: 20px; letter-spacing: 0.40px; word-wrap: break-word; overflow-x: auto; overflow-y: hidden; padding: 10px; border-radius: 10px; background: transparent; scroll-behavior: smooth;">
+            <?php foreach ($adminList as $admin): ?>
+                <div
+                    style="display: flex; flex-direction: column; align-items: center; width: 120px; min-width: 120px; padding: 10px; border-radius: 10px; position: relative;">
+                    <img src="<?php echo htmlspecialchars($admin['fotoProfil'] ?? 'Assets/NoProfile.jpg'); ?>" alt="Profile"
+                        style="width: 80px; height: 80px; border-radius: 50%; margin-bottom: 12px;">
+                    <div style="font-weight: 700; font-size: 24px; text-align: center; margin-bottom: 12px;">
+                        <?php echo htmlspecialchars($admin['Username'] ?? 'Unknown'); ?></div>
+                    <div style="font-size: 20px; color: black; text-align: center; margin-bottom: 8px;">
+                        <?php echo htmlspecialchars($admin['RoleName'] ?? 'Role'); ?></div>
+                    <?php $isActiveInt = (int) $admin['IsActive']; ?>
+                    <div
+                        style="font-size: 16px; font-weight: 600; margin-bottom: 8px; text-align: center; padding: 5px 10px; border-radius: 5px; color: white; <?php echo ($admin['IsActive'] == 1) ? 'background-color: green;' : 'background-color: red;'; ?>">
+                        <?php
+                        $status = 'Active'; // default
+                        if (isset($admin['IsActive'])) {
+                            echo "<!-- DEBUG IsActive: $isActiveInt -->"; // debug output
+                            echo "<!-- DEBUG IsActive value: {$admin['IsActive']}, type: " . gettype($admin['IsActive']) . " -->";
+                            if ($admin['IsActive'] == 1) {
+                                $status = 'Active';
+                            } else if ($admin['IsActive'] == 2) {
+                                $status = 'Inactive';
+                            } else {
+                                $status = 'Unknown';
+                            }
+                        }
+                        echo $status;
+                        ?>
+                    </div>
+                    <?php $isActiveInt = (int) $admin['IsActive']; ?>
+                    <form method="post" style="position: absolute; top: 5px; right: 5px;">
+                        <input type="hidden" name="toggleUserId"
+                            value="<?php echo htmlspecialchars($admin['idUser'] ?? ''); ?>">
+                        <input type="hidden" name="currentStatus"
+                            value="<?php echo htmlspecialchars($admin['IsActive'] ?? ''); ?>">
+                        <button type="submit" name="toggleActiveAdmin"
+                            style="background-color: <?php echo ($admin['IsActive'] == 1) ? 'green' : 'red'; ?>; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer;"
+                            title="Toggle Active Status">
+                            <?php echo ($admin['IsActive'] == 1) ? 'Activate' : 'Deactivate'; ?>
+                        </button>
+                    </form>
+                </div>
+            <?php endforeach; ?>
         </div>
         <div data-layer="Nama Channel" class="NamaChannel"
             style="width: 448px; height: 39px; left: 483px; top: 237px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 40px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Nama
-            Channel</div>
+            <?php echo htmlspecialchars($namaChannel); ?>
+        </div>
         <div data-layer="Display Name" class="DisplayName"
             style="width: 293px; height: 23px; left: 483px; top: 315px; position: absolute; color: black; font-size: 32px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Display
-            Name</div>
+            <?php echo htmlspecialchars($displayName); ?>
+        </div>
+
+        <div data-layer="Invited Admin List Content" class="InvitedAdminListContent"
+            style="width: 959px; height: 250px; left: 257px; top: 870px; position: absolute; justify-content: flex-start; display: flex; flex-direction: row; gap: 20px; color: black; font-size: 18px; font-family: Roboto; font-weight: 400; line-height: 20px; letter-spacing: 0.40px; word-wrap: break-word; overflow-x: auto; overflow-y: hidden; padding: 10px; border-radius: 10px; background: transparent; scroll-behavior: smooth;">
+            <?php foreach ($invitedAdminList as $admin): ?>
+                <div
+                    style="display: flex; flex-direction: column; align-items: center; width: 120px; min-width: 120px; padding: 10px; border-radius: 10px;">
+                    <img src="<?php echo htmlspecialchars($admin['fotoProfil'] ?? 'Assets/NoProfile.jpg'); ?>" alt="Profile"
+                        style="width: 80px; height: 80px; border-radius: 50%; margin-bottom: 12px;">
+                    <div style="font-weight: 700; font-size: 24px; text-align: center; margin-bottom: 12px;">
+                        <?php echo htmlspecialchars($admin['Username'] ?? 'Unknown'); ?></div>
+                    <div style="font-size: 20px; color: black; text-align: center; width: 110px;">
+                        <?php echo htmlspecialchars($admin['email'] ?? 'Email'); ?></div><br>
+                    <div style="font-size: 20px; color: black; text-align: center;">
+                        <?php echo htmlspecialchars($admin['RoleName'] ?? 'Role'); ?></div>
+                </div>
+            <?php endforeach; ?>
+        </div>
     </div>
 </body>
 

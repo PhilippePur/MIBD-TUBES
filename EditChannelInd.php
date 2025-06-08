@@ -10,47 +10,56 @@ if (!isset($_SESSION['uid'])) {
 $isAdmin = false;
 $uid = $_SESSION['uid'];
 
-if (isset($_SESSION['uid'])) {
 
-    $sql = "
-        SELECT A.ChannelID
-        FROM Admin A
-        WHERE A.UserID = ? AND( RoleID = 1 OR RoleID = 2) 
-    ";
-    $stmt = sqlsrv_query($conn, $sql, [$uid]);
-
-    if ($stmt && sqlsrv_has_rows($stmt)) {
-        $isAdmin = true; // User sudah jadi admin
-    }
-}
 
 $sql = "SELECT 
             C.namaChannel, 
             C.deskripsi, 
             C.fotoProfil, 
             U.Email,
-            A.ChannelID 
+            A.idChannel,
+            R.RoleName
         FROM Users U
-        INNER JOIN [Admin] A ON A.UserID = U.Id
-        INNER JOIN Channel C ON C.idChannel = A.ChannelID
-        WHERE U.id = ?";
+        INNER JOIN [Admin] A ON A.idUser = U.idUser
+        INNER JOIN Channel C ON C.idChannel = A.idChannel
+        INNER JOIN Roles R ON R.idRole = A.idRole
+        WHERE U.idUser = ? AND (isActive = 1 OR isActive = 2) ";
 
 $params = [$uid];
 $stmt = sqlsrv_query($conn, $sql, $params);
-
+$canEdit = true;
 if ($stmt && sqlsrv_has_rows($stmt)) {
     $channelInfo = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-    // akses seperti: $channelInfo['namaChannel'], $channelInfo['Email'], dst
+    $usernameLama = $channelInfo['namaChannel'];
+    $emailLama = $channelInfo['Email'];
+    $fotoLama = $channelInfo['fotoProfil'];
+    $deskripsiLama = $channelInfo['deskripsi'] ?? '';
+    $channelID = $channelInfo['idChannel'];
 } else {
-    echo "Channel tidak ditemukan atau tidak ada admin terkait.";
+    // echo "Channel tidak ditemukan atau tidak ada admin terkait.";
+    $usernameLama = "Tidak Ditemukan";
+    $emailLama = "Tidak Ditemukan";
+    $fotoLama = "Assets/NoProfile.jpg";
+    $deskripsiLama = "Channel tidak ditemukan, mohon buat channel atau masuk ke dalam channel grup sebagai admin";
+    $channelID = 0;
 }
 
-$usernameLama = $channelInfo['namaChannel'];
-$emailLama = $channelInfo['Email'];
-$fotoLama = $channelInfo['fotoProfil'];
-$deskripsiLama = $channelInfo['deskripsi'] ?? '';
-$channelID = $channelInfo['ChannelID'];
-
+if (isset($_SESSION['uid'])) {
+    
+    $sql = "
+    SELECT A.idChannel
+    FROM Admin A
+    WHERE A.idUser = ? AND (idRole = 1 OR idRole = 2 OR idRole = 3) 
+    ";
+    $stmt = sqlsrv_query($conn, $sql, [$uid]);
+    
+    if ($stmt && sqlsrv_has_rows($stmt)) {
+        $isAdmin = true; // User sudah jadi admin
+    } else {
+        $deskripsiLama = "Anda Tidak Diperkenankan Mengedit Channel Ini !";
+        $canEdit = false;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -70,15 +79,6 @@ $channelID = $channelInfo['ChannelID'];
             style="width: 140px; height: 140px; left: 300px; top: 216px; position: absolute; border-radius: 200px"
             src="<?= htmlspecialchars($fotoLama) ?>">
 
-
-        <div style="width: 104px; height: 43px; left: 318px; top: 370px; position: absolute; background: #795757; border-radius: 12px; 
-           text-align: center; justify-content: center; display: flex; align-items: center; text-decoration: none;">
-            <span style="color: #FFF3F3; font-size: 14px; font-family: Roboto; font-weight: 400; 
-         line-height: 16px; letter-spacing: 0.40px;">
-                Choose Photo
-            </span>
-        </div>
-
         <a href="logout.php" style="width: 104px; height: 43px; left: 318px; top: 159px; position: absolute; background: #eb4034; border-radius: 12px; 
            text-align: center; justify-content: center; display: flex; align-items: center; text-decoration: none;">
             <span style="color: #FFF3F3; font-size: 14px; font-family: Roboto; font-weight: 400; 
@@ -88,17 +88,17 @@ $channelID = $channelInfo['ChannelID'];
         </a>
 
 
-        <a href="upload.php" style="display: inline-block; width: 104px; height: 43px; left: 1109px; top: 159px; position: absolute; 
-          background: #795757; border-radius: 12px; text-align: center; line-height: 43px; color: white; 
-          text-decoration: none; font-family: Inter; font-size: 14px;">
-            Upload
-        </a>
-
         <?php if ($isAdmin): ?>
-            <a href="addAdmin.php" style="display: inline-block; width: 104px; height: 43px; left: 959px; top: 159px; position: absolute; 
+            <a href="upload.php" style="display: inline-block; width: 104px; height: 43px; left: 1109px; top: 159px; position: absolute; 
           background: #795757; border-radius: 12px; text-align: center; line-height: 43px; color: white; 
           text-decoration: none; font-family: Inter; font-size: 14px;">
-                Add Admin
+                Upload
+            </a>
+
+            <a href="updateChannel.php" style="display: inline-block; width: 104px; height: 43px; left: 959px; top: 159px; position: absolute; 
+          background: #795757; border-radius: 12px; text-align: center; line-height: 43px; color: white; 
+          text-decoration: none; font-family: Inter; font-size: 14px;">
+                Manage Admin
             </a>
         <?php endif; ?>
 
@@ -193,41 +193,52 @@ $channelID = $channelInfo['ChannelID'];
         <div data-layer="Email" class="Email"
             style="width: 212px; height: 28px; left: 481px; top: 320px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
             Email </div>
-
-
-        <form method="POST" action="proses_edit_channel.php" enctype="multipart/form-data">
-            <!-- Tombol pilih file -->
-            <label for="foto" style="width: 104px; height: 43px; left: 318px; top: 370px; position: absolute; background: #795757; 
+        <?php if ($canEdit): ?>
+            <form method="POST" action="proses_edit_channel.php" enctype="multipart/form-data">
+                <!-- Tombol pilih file -->
+                <label for="foto" style="width: 104px; height: 43px; left: 318px; top: 370px; position: absolute; background: #795757; 
     border-radius: 12px; text-align: center; justify-content: center; display: flex; align-items: center; 
     text-decoration: none; cursor: pointer;">
-                <span style="color: #FFF3F3; font-size: 14px; font-family: Roboto; font-weight: 400; 
+                    <span style="color: #FFF3F3; font-size: 14px; font-family: Roboto; font-weight: 400; 
      line-height: 16px; letter-spacing: 0.40px;">Choose Photo</span>
-                <input type="file" id="foto" name="foto" accept="image/*" style="display: none;"
-                    onchange="previewFoto(event)">
-            </label>
-            <input type="hidden" name="channelID" value="<?= htmlspecialchars($channelID) ?>">
+                    <input type="file" id="foto" name="foto" accept="image/*" style="display: none;"
+                        onchange="previewFoto(event)">
+                </label>
+                <input type="hidden" name="idChannel" value="<?= htmlspecialchars($channelID) ?>">
 
-            <!-- Field username -->
-            <input type="text" name="username" value="<?= htmlspecialchars($usernameLama) ?>" style="width: 537px; height: 60px; left: 656px; top: 237px; position: absolute; opacity: 0.9; 
+                <!-- Field username -->
+                <input type="text" name="username" value="<?= htmlspecialchars($usernameLama) ?>" style="width: 537px; height: 60px; left: 656px; top: 237px; position: absolute; opacity: 0.9; 
         background: #472323; border-radius: 26px; color: white; font-size: 18px; padding-left: 20px; border: none;" />
 
-            <!-- Field email readonly -->
-            <input type="email" name="email" value="<?= htmlspecialchars($emailLama) ?>" readonly style="width: 537px; height: 60px; left: 656px; top: 307px; position: absolute; opacity: 0.9; 
+                <!-- Field email readonly -->
+                <input type="email" name="email" value="<?= htmlspecialchars($emailLama) ?>" readonly style="width: 537px; height: 60px; left: 656px; top: 307px; position: absolute; opacity: 0.9; 
         background: #472323; border-radius: 26px; color: white; font-size: 18px; padding-left: 20px; border: none;" />
 
-            <!-- Tombol submit -->
-            <button type="submit" name="update_channel" style="display: inline-block; width: 104px; height: 43px; left: 1109px; top: 970px; position: absolute; 
+                <!-- Tombol submit -->
+                <button type="submit" name="update_channel" style="display: inline-block; width: 104px; height: 43px; left: 1109px; top: 970px; position: absolute; 
           background: #795757; border-radius: 12px; text-align: center; line-height: 43px; color: white; 
           text-decoration: none; font-family: Inter; font-size: 14px;">
-                Save
-            </button>
-            <textarea name="deskripsi"
-                style="width: 960px; height: 370px; left: 257px; top: 547px; position: absolute; opacity: 0.9; 
+                    Save
+                </button>
+                <textarea name="deskripsi"
+                    style="width: 960px; height: 370px; left: 257px; top: 547px; position: absolute; opacity: 0.9; 
     background:rgb(119, 94, 94); border-radius: 26px; color: white; font-size: 18px; padding: 20px; border: none; resize: none;">
-<?= htmlspecialchars($deskripsiLama) ?>
-</textarea>
+                            <?= htmlspecialchars($deskripsiLama) ?>
+                            </textarea>
+            </form>
+        <?php else: ?>
+            <input type="text" name="username" value="<?= htmlspecialchars($usernameLama) ?>" readonly style="width: 537px; height: 60px; left: 656px; top: 237px; position: absolute; opacity: 0.9; 
+        background: #472323; border-radius: 26px; color: white; font-size: 18px; padding-left: 20px; border: none;" />
 
-        </form>
+            <input type="email" name="email" value="<?= htmlspecialchars($emailLama) ?>" readonly style="width: 537px; height: 60px; left: 656px; top: 307px; position: absolute; opacity: 0.9; 
+        background: #472323; border-radius: 26px; color: white; font-size: 18px; padding-left: 20px; border: none;" />
+            <textarea name="deskripsi" readonly
+                style="width: 960px; height: 370px; left: 257px; top: 547px; position: absolute; opacity: 0.9; 
+    background:rgb(119, 94, 94); border-radius:     26px; color: white; font-size: 18px; padding: 20px; border: none; resize: none;">
+                            <?= htmlspecialchars($deskripsiLama) ?>
+                            </textarea>
+        <?php endif; ?>
+
 
     </div>
     <script>

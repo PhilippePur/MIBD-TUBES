@@ -2,7 +2,7 @@
 require_once 'testsql.php';
 session_start();
 
-$videoId = $_POST['video_id'] ?? null;
+$videoId = $_POST['idVideo'] ?? null;
 $watchingTime = $_POST['watching_time'] ?? null;
 $userId = $_SESSION['uid'];; // ganti sesuai sistem login
 

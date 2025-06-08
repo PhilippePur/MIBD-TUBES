@@ -19,7 +19,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $userid = $_SESSION['uid'];
 
     // Ambil ChannelID milik user yang sedang login
-    $channelSql = "SELECT ChannelID FROM Admin WHERE UserID = ?";
+    $channelSql = "SELECT idChannel FROM Admin WHERE idUser = ?";
     $channelStmt = sqlsrv_query($conn, $channelSql, [$userid]);
 
     if ($channelStmt === false || !sqlsrv_has_rows($channelStmt)) {
@@ -28,11 +28,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     $channelData = sqlsrv_fetch_array($channelStmt, SQLSRV_FETCH_ASSOC);
-    $channelID = $channelData['ChannelID'];
+    $channelID = $channelData['idChannel'];
 
     // Cek apakah email valid dan ambil user ID
     $checkSql = "
-        SELECT U.Id AS UserID
+        SELECT U.idUser 
         FROM Users U
         WHERE U.Email = ?
     ";
@@ -50,10 +50,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit;
     }
 
-    $newUserId = $userData['UserID'];
+    $newUserId = $userData['idUser'];
 
     // Cek apakah user tersebut sudah admin di channel ini
-    $checkAdminSql = "SELECT * FROM Admin WHERE UserID = ? AND ChannelID = ?";
+    $checkAdminSql = "SELECT * FROM Admin WHERE idUser = ? AND idChannel = ?";
     $stmtAdminCheck = sqlsrv_query($conn, $checkAdminSql, [$newUserId, $channelID]);
 
     if (sqlsrv_has_rows($stmtAdminCheck)) {
@@ -63,15 +63,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // Insert ke Admin
     $sqlInsert = "
-        INSERT INTO Admin (UserID, ChannelID, RoleID, IsActive, CreatedAt)
-        VALUES (?, ?, ?, 1, GETDATE())
+        INSERT INTO Admin (idUser, idChannel, idRole, IsActive, CreatedAt)
+        VALUES (?, ?, ?, 2, GETDATE())
     ";
     $stmtInsert = sqlsrv_query($conn, $sqlInsert, [$newUserId, $channelID, $roleID]);
 
     if ($stmtInsert === false) {
         echo "<script>alert('Gagal menambahkan admin!'); window.location.href='addAdmin.php';</script>";
     } else {
-        echo "<script>alert('Admin berhasil ditambahkan!'); window.location.href='EditChannelInd.php';</script>";
+        echo "<script>alert('Admin berhasil ditambahkan!'); window.location.href='updateChannel.php';</script>";
     }
 }
 

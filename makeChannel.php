@@ -46,13 +46,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-    $newChannelID = $row['IdChannel'];
+    $newChannelID = $row['idChannel'];
 
+    $RoleOwner = 1;
+    $sqlOWner = "SELECT idRole FROM [Admin] WHERE RoleName = 'Owner";
+    $stmtOwner = sqlsrv_query($conn, $sqlOWner);
 
+    if ($stmtOwner && ($rowOwner = sqlsrv_fetch_array($stmtOwner, SQLSRV_FETCH_ASSOC))) {
+        $RoleOwner = $rowOwner['idRole'];
+    } else {
+        die("Gagal mengambil RoleID untuk 'Owner': " . print_r(sqlsrv_errors(), true));
+    }
     // Insert ke Admin (sebagai Owner)
-    $sqlAdmin = "INSERT INTO [Admin] (UserID, ChannelID, RoleID, IsActive, CreatedAt)
-                 VALUES (?, ?, 1, 1, GETDATE())";
-    $paramsAdmin = [$userId, $newChannelID];
+    $sqlAdmin = "INSERT INTO [Admin] (idUser, idChannel, idRole, IsActive, CreatedAt)
+                 VALUES (?, ?, ?, 1, GETDATE())";
+    $paramsAdmin = [$userId, $newChannelID, $RoleOwner];
     $stmtAdmin = sqlsrv_query($conn, $sqlAdmin, $paramsAdmin);
 
     if ($stmtAdmin === false) {
@@ -68,7 +76,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $_SESSION['fotoProfil'] = $fotoProfil;
     }
 
-    // Redirect
+    // Redirect 
     if ($channelTypeValue == 0) {
         echo "<script>window.location.href='homePage.php';</script>";
     } else {

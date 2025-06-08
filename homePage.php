@@ -16,22 +16,22 @@ $isAdmin = false;
 
 if (isset($_SESSION['uid'])) {
 
-    $sql = "
-        SELECT A.ChannelID
+  $sql = "
+        SELECT A.idChannel
         FROM Admin A
-        WHERE A.UserID = ?
+        WHERE A.idUser = ?
     ";
-    $stmt = sqlsrv_query($conn, $sql, [$userId]);
+  $stmt = sqlsrv_query($conn, $sql, [$userId]);
 
-    if ($stmt && sqlsrv_has_rows($stmt)) {
-        $isAdmin = true; // User sudah jadi admin
-    }
+  if ($stmt && sqlsrv_has_rows($stmt)) {
+    $isAdmin = true; // User sudah jadi admin
+  }
 }
 
 
 
 $sql = "SELECT 
-            V.id,
+            V.idVideo,
             V.title,
             V.thumbnail,
             V.uploaded_at,
@@ -40,12 +40,12 @@ $sql = "SELECT
             ISNULL(SUM(T.jumlahTonton), 0) AS jumlahView
         FROM Videos V
         JOIN Channel C ON V.idChannel = C.idChannel
-        LEFT JOIN Tonton T ON V.id = T.idVideo
+        LEFT JOIN Tonton T ON V.idVideo = T.idVideo
         WHERE V.isActive = 1
         GROUP BY 
-            V.id, V.title, V.thumbnail, V.uploaded_at, 
+            V.idVideo, V.title, V.thumbnail, V.uploaded_at, 
             C.namaChannel, C.fotoProfil
-        ORDER BY V.id ASC";
+        ORDER BY V.idVideo ASC";
 
 $result = sqlsrv_query($conn, $sql);
 
@@ -67,7 +67,7 @@ for ($i = 0; $i < 9; $i++):
   ?>
   <?php if ($video): ?>
     <!-- Thumbnail -->
-    <a href="PageView.php?id=<?= $video['id'] ?>"
+    <a href="PageView.php?id=<?= $video['idVideo'] ?>"
       style="text-decoration: none; position: absolute; left: <?= $x ?>px; top: <?= $y ?>px; z-index: 10;">
       <div class="Konten<?= $i + 1 ?>"
         style="width: 316px; height: 179px; background: <?= $color ?>; border-radius: 20px; overflow: hidden; cursor: pointer; position: relative;">
@@ -230,15 +230,6 @@ for ($i = 0; $i < 9; $i++):
       </div>
     </div>
     <?php
-    require_once 'testsql.php'; // koneksi SQL Server
-    
-    $sql = "SELECT id, title, thumbnail FROM Videos ORDER BY id ASC";
-    $result = sqlsrv_query($conn, $sql);
-    $videos = [];
-
-    while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
-      $videos[] = $row;
-    }
     ?>
     <div data-svg-wrapper data-layer="home" class="Home" style="left: 26px; top: 107px; position: absolute">
       <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -301,6 +292,22 @@ for ($i = 0; $i < 9; $i++):
         <path d="M0.713867 1.43408H253.352" stroke="white" stroke-width="2" stroke-linecap="round" />
       </svg>
     </div>
+
+    <!-- Lonceng Notifikasi -->
+    <div style="position: absolute; top: 32px; right: 330px;height: 50px; width: 50px;">
+      <button id="notifBtn"
+        style="background: none; border: none; cursor: pointer;height: 50px; width: 50px; font-size: 34px;">
+        🔔
+      </button>
+      <div id="notifPopup"
+        style="display: none; position: absolute; right: 0; background: white; border: 1px solid #ccc; padding: 10px; width: 300px;height: 300px; z-index: 100;">
+        <strong>Undangan Admin</strong>
+        <div id="notifContent">
+          <p>Memuat...</p>
+        </div>
+      </div>
+    </div>
+
     <a href="EditChannelInd.php">
       <img data-layer="MainProfile" class="Mainprofile"
         style="width: 75; height: 75; left: 1415; top: 22; position: absolute; border-radius: 200px"
@@ -315,44 +322,38 @@ for ($i = 0; $i < 9; $i++):
       </a>
     <?php endif; ?>
 
-
-    <?php
-    require_once 'testsql.php'; // Pastikan koneksi SQL Server
-    
-    $sql = "SELECT id, title, thumbnail FROM Videos WHERE isACtive = 1 ORDER BY id DESC";
-    $result = sqlsrv_query($conn, $sql);
-    $videos = [];
-
-    while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
-      $videos[] = $row;
-    }
-
-    for ($i = 0; $i < 9; $i++):
-      $video = $videos[$i] ?? null;
-      $left = [320, 734, 1148];
-      $top = [183, 453, 723];
-      $x = $left[$i % 3];
-      $y = $top[floor($i / 3)];
-      $color = ['#EB4A4A', '#20EFAE', '#3C36FE', '#FF4BB7', '#2E412B', '#E1E63E', '#308120', '#37B8EF', '#AD45EA'][$i];
-      ?>
-      <div class="Konten<?= $i + 1 ?>"
-        style="width: 316px; height: 179px; left: <?= $x ?>px; top: <?= $y ?>px; position: absolute; background: <?= $color ?>; border-radius: 20px; overflow: hidden;">
-        <?php if ($video && $video['thumbnail']): ?>
-          <img src="<?= htmlspecialchars($video['thumbnail']) ?>" alt="Thumbnail"
-            style="width: 100%; height: 100%; object-fit: cover;">
-        <?php else: ?>
-          <span
-            style="display: flex; justify-content: center; align-items: center; height: 100%; color: white; font-weight: bold;">Tidak
-            Ada Thumbnail</span>
-        <?php endif; ?>
-      </div>
-    <?php endfor; ?>
-
     <div data-svg-wrapper data-layer="add-square" class="AddSquare" style="left: 1333px; top: 34px; position: absolute">
       <a href="dashboard.php" class="AddSquare" style="left: 0; top: 0; position: absolute; display: block;">
         <img src="Assets/add-square.png" alt="Add Square" width="51" height="51">
       </a>
     </div>
   </div>
+
+  <script>
+    document.getElementById('notifBtn').onclick = function () {
+      const popup = document.getElementById('notifPopup');
+      popup.style.display = (popup.style.display === 'none') ? 'block' : 'none';
+
+      // AJAX fetch data dari invitation
+      fetch('getInvitation.php')
+        .then(response => response.text())
+        .then(data => {
+          document.getElementById('notifContent').innerHTML = data;
+        });
+    };
+
+    function respondToInvite(inviteId, action) {
+      fetch('respondInvite.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `id=${inviteId}&action=${action}`
+      }).then(() => {
+        // Refresh notifikasi
+        document.getElementById('notifBtn').click();
+        document.getElementById('notifBtn').click();
+      });
+    }
+  </script>
+
 
 </html>

@@ -8,7 +8,7 @@ if (!isset($_SESSION['uid']) || !isset($_POST['update_channel'])) {
 }
 
 $uid = $_SESSION['uid'];
-$channelID = $_POST['channelID'] ?? null;
+$channelID = $_POST['idChannel'] ?? null;
 
 $fotoProfil = null;
 $namaChannel = $_POST['username'];

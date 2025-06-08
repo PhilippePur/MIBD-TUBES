@@ -29,7 +29,7 @@ $sql = "SELECT
             C.idChannel
         FROM Videos V
         JOIN Channel C ON V.idChannel = C.idChannel
-        WHERE V.id = ?";
+        WHERE V.idVideo = ?";
 $stmt = sqlsrv_query($conn, $sql, [$videoId]);
 
 if ($stmt === false) {
@@ -61,7 +61,7 @@ $lamaMenonton = 0;
 // 0 = tidak memilih , 1 = like, 2 = dislike
 $likeDislike = 0;
 
-$sqlCheck = "SELECT 1 FROM Tonton WHERE idVideo = ? AND idUser = ?";
+$sqlCheck = "SELECT COUNT(idUSer) FROM Tonton WHERE idVideo = ? AND idUser = ?";
 $stmtCheck = sqlsrv_query($conn, $sqlCheck, [$videoId, $userId]);
 
 if ($stmtCheck === false) {
@@ -79,7 +79,7 @@ if (!sqlsrv_fetch_array($stmtCheck)) {
     }
 } else {
     // Sudah ada → bisa update lamaMenonton jika perlu
-    $sqlUpdateView = "UPDATE Tonton SET lamaMenonton = lamaMenonton + ? WHERE idVideo = ? AND idUser = ?";
+    $sqlUpdateView = "UPDATE Tonton SET lamaMenonton = lamaMenonton + ?, jumlahTonton = jumlahTonton + 1 WHERE idVideo = ? AND idUser = ?";
     $resultUpdate = sqlsrv_query($conn, $sqlUpdateView, [$lamaMenonton, $videoId, $userId]);
 
     if ($resultUpdate === false) {
@@ -102,6 +102,12 @@ $stmt = sqlsrv_query($conn, $sqlUserStatus, [$videoId, $userId]);
 $statusData = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
 $userStatus = $statusData['likeDislike'] ?? 0;
 
+// ambil jumlah subscribe bedasarkan tabel subscribe
+$sqlJumlahSubs = "SELECT COUNT(idUser) as count FROM Subscribe WHERE idChannel= ? AND isActive = 1";
+$stmt = sqlsrv_query($conn, $sqlJumlahSubs, [$video['idChannel']]);
+$jumlahSubsData = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+$jumlahSubs = $jumlahSubsData['count'] ?? 0;
+
 // Cek apakah user sudah subscribe ke channel ini
 $sql = "SELECT COUNT(*) as count FROM Subscribe WHERE idUser = ? AND idChannel = ? AND isActive = 1";
 $stmt = sqlsrv_query($conn, $sql, [$userId, $video['idChannel']]);
@@ -115,7 +121,7 @@ $sql = "SELECT
             U.username,
             U.fotoProfil
         FROM Komen K
-        JOIN Users U ON K.idUser = U.id
+        JOIN Users U ON K.idUser = U.idUser
         WHERE K.idVideo = ? AND K.isActive = 1
         ORDER BY K.tanggal DESC";
 
@@ -294,7 +300,7 @@ function waktu_berlalu($tanggal)
         <div data-layer="Navigations/SearchBox" class="NavigationsSearchbox"
             style="width: 470px; height: 40px; position: relative"></div>
     </div>
-    <a href = "EditChannelInd.php">
+    <a href="EditChannelInd.php">
         <img data-layer="MainProfile" class="Mainprofile"
             style="width: 75px; height: 75px; left: 1415px; top: 22px; position: absolute; border-radius: 200px" <img
             data-layer="MainProfile" class="Mainprofile"
@@ -306,22 +312,26 @@ function waktu_berlalu($tanggal)
         style="width: 239.88px; height: 43.66px; left: 129px; top: 880px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
         <?= htmlspecialchars($video['namaChannel']) ?>
     </div>
-
+    <div data-layer="JumlahViewers" class="JumlahViewers"
+        style="width: 239.88px; height: 43.66px; left: 65px; top: 1029px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
+        <?= number_format($video['jumlahView']) ?> views
+    </div>
     <div data-layer="UploadedAt" class="UploadedAt"
         style="width: 336px; height: 44px; left: 65px; top: 994px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
         Uploaded At <?= date_format($video['uploaded_at'], "d M Y") ?></div>
     <div data-layer="Komentar" class="Komentar"
         style="width: 336px; height: 44px; left: 65px; top: 1372px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 24px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
         Komentar</div>
-    <div data-layer="JumlahViewers" class="JumlahViewers"
+
+    <div data-layer="JumlahSubs" class="JumlahSubs"
         style="width: 239.88px; height: 43.66px; left: 129px; top: 910px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-        <?= number_format($video['jumlahView']) ?> views
+        <?= number_format($jumlahSubs) ?> subscribers
     </div>
     <!-- <div data-layer="Tambahkan Komentar" class="TambahkanKomentar"
         style="width: 239.88px; height: 43.66px; left: 137px; top: 1430px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: black; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
         Tambahkan Komentar</div> -->
     <div data-layer="Deskripsi"
-        style="width: 1325px; height: 345px; left: 68px; top: 1043px; position: absolute; color: black; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
+        style="width: 1325px; height: 345px; left: 68px; top: 1073px; position: absolute; color: black; font-size: 16px; font-family: Roboto; font-weight: 400; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
         <?= nl2br(htmlspecialchars($video['description'])) ?>
     </div>
 
@@ -372,10 +382,15 @@ function waktu_berlalu($tanggal)
             </div>
         </div>
 
-        <!-- Tampilkan video -->
+        <!-- Tampilkan video
+        <iframe width="1536" height="710" style="left: -455px; top: 62px; position: absolute; border-radius: 20px;"
+            src="https://www.youtube.com/embed/<?= htmlspecialchars(string: $video['path']) ?>?autoplay=1&controls=1" title="YouTube video player"
+            frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+        </iframe> -->
+
         <video controls autoplay
             style="width: 1536px; height: 710px; left: -455px; top: 62px; position: absolute; border-radius: 20px; background: black; object-fit: cover;">
-            <source src="<?= htmlspecialchars($video['path']) ?>" type="video/mp4">
+            <source src="<?= htmlspecialchars(string: $video['path']) ?>" type="video/mp4">
             Browser Anda tidak mendukung video.
         </video>
 

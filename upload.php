@@ -5,14 +5,14 @@ require_once 'testsql.php'; // koneksi ke SQL Server
 $uid = $_SESSION['uid'];
 $sql = "SELECT 
             C.fotoProfil, 
-            A.ChannelID 
+            A.idChannel 
         FROM Users U
-        INNER JOIN [Admin] A ON A.UserID = U.Id
-        INNER JOIN Channel C ON C.idChannel = A.ChannelID
-        WHERE U.id = ?";
+        INNER JOIN [Admin] A ON A.idUser = U.idUser
+        INNER JOIN Channel C ON C.idChannel = A.idChannel
+        WHERE U.idUser = ?";
 
 $params = [$uid];
-$stmt = sqlsrv_query($conn, $sql, $params);
+$stmt = sqlsrv_query( $conn, $sql,  $params);
 
 if ($stmt && sqlsrv_has_rows($stmt)) {
     $channelInfo = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
@@ -22,7 +22,7 @@ if ($stmt && sqlsrv_has_rows($stmt)) {
 }
 
 $fotoProfil = $channelInfo['fotoProfil'];
-$channelID = $channelInfo['ChannelID'];
+$idChannel = $channelInfo['idChannel'];
 
 
 // Tangani proses upload jika ada request POST dan file
@@ -56,7 +56,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["file"])) {
         $videoDesc = $_POST['video_description'] ?? '';
 
         $sql = "INSERT INTO Videos (title, description, path, thumbnail, idChannel) VALUES (?, ?, ?, ?, ?)";
-        $params = [$videoTitle, $videoDesc, $targetFile, $thumbnailPath, $channelID];
+        $params = [$videoTitle, $videoDesc, $targetFile, $thumbnailPath, $idChannel];
 
 
         $stmt = sqlsrv_query($conn, $sql, $params);
@@ -315,12 +315,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["file"])) {
                 </svg>
             </div>
         </div>
-        <div data-layer="NamaFile" class="Namafile"
-            style="left: 572px; top: 687px; position: absolute; justify-content: center; display: flex; flex-direction: column; color: white; font-size: 32px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            NamaFile</div>
-        <div data-layer="Size" class="Size"
-            style="left: 572px; top: 716px; position: absolute; opacity: 0.28; justify-content: center; display: flex; flex-direction: column; color: white; font-size: 14px; font-family: Roboto; font-weight: 700; line-height: 16px; letter-spacing: 0.40px; word-wrap: break-word">
-            Size</div>
+
     </div>
     <script>
         function previewThumbnail(event) {

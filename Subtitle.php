@@ -2,17 +2,17 @@
 require_once 'testsql.php';
 session_start();
 
-$videoId = $_GET['id'] ?? ''; // ID video dari dashboard.php
+$videoId = $_GET['idVideo'] ?? ''; // ID video dari dashboard.php
 
 $sql = "
 SELECT
-    V.id AS videoId,
+    V.idVideo AS idVideo,
     V.title AS videoTitle,
     V.thumbnail AS thumb,
     V.uploaded_at As VideoDate,
     V.idChannel
 FROM Videos V 
-WHERE V.id = ?
+WHERE V.idVideo = ?
 ";
 $params = [];
 $params[] = $videoId;
@@ -26,7 +26,7 @@ $videoDate = isset($row['VideoDate'])  != null ? $row['VideoDate']->format('F d,
 $videoTitle = isset($row['videoTitle']) == null ? '' : $row['videoTitle'];
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $idVideo = $_POST['id_video'];
+    $idVideo = $_POST['idVideo'];
     $waktuMuncul = $_POST['waktu_muncul'];
     $waktuSelesai = $_POST['waktu_selesai'];
     $isiTeks = $_POST['isi_teks'];

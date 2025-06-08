@@ -8,16 +8,16 @@ $orderBy = "V.uploaded_at DESC";    // default urutan
 
 switch ($sort) {
     case 'views':
-        $orderBy = "(SELECT SUM(jumlahTonton) FROM Tonton T WHERE T.idVideo = V.id) DESC";
+        $orderBy = "(SELECT SUM(jumlahTonton) FROM Tonton T WHERE T.idVideo = V.idVideo) DESC";
         break;
     case 'watchtime':
-        $orderBy = "(SELECT SUM(lamaMenonton) FROM Tonton T WHERE T.idVideo = V.id) DESC";
+        $orderBy = "(SELECT SUM(lamaMenonton) FROM Tonton T WHERE T.idVideo = V.idVideo) DESC";
         break;
     case 'likes':
-        $orderBy = "(SELECT COUNT(*) FROM Tonton T WHERE T.idVideo = V.id AND likeDislike = 1) DESC";
+        $orderBy = "(SELECT COUNT(*) FROM Tonton T WHERE T.idVideo = V.idVideo AND likeDislike = 1) DESC";
         break;
     case 'comments':
-        $orderBy = "(SELECT COUNT(*) FROM Komen K WHERE K.idVideo = V.id) DESC";
+        $orderBy = "(SELECT COUNT(*) FROM Komen K WHERE K.idVideo = V.idVideo) DESC";
         break;
     case 'tanggal':
     default:
@@ -25,13 +25,26 @@ switch ($sort) {
         break;
 }
 
+$RoleName = 'Viewer';
+$sqlRole = "SELECT R.RoleName FROM [Admin] A INNER JOIN Roles R ON A.idRole = R.idRole WHERE idUser = ?";
+$paramsRole = [$uid];
+$stmtRole = sqlsrv_query($conn, $sqlRole, $paramsRole);
+
+if ($stmtRole && ($rowRole = sqlsrv_fetch_array($stmtRole, SQLSRV_FETCH_ASSOC))) {
+    $RoleName = $rowRole['RoleName'];
+} else {
+    die("Gagal mengambil RoleName: " . print_r(sqlsrv_errors(), true));
+}
+
+
+
 $sql = "
-SELECT TOP 10 V.id, V.title, V.thumbnail, V.uploaded_at
+SELECT TOP 10 V.idVideo, V.title, V.thumbnail, V.uploaded_at
 FROM Videos V
 INNER JOIN Channel C ON V.idChannel = C.idChannel
-INNER JOIN Admin A ON C.idChannel = A.ChannelID
-INNER JOIN Users U ON A.UserID = U.id
-WHERE U.id = ? AND V.isActive = 1
+INNER JOIN Admin A ON C.idChannel = A.idCHannel
+INNER JOIN Users U ON A.idUser = U.idUser
+WHERE U.idUser = ? AND V.isActive = 1
 ORDER BY $orderBy";
 
 $params = [$uid];
@@ -59,7 +72,7 @@ $totalComments = 0;
 $videos = [];
 if ($stmt !== false) {
     while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-        $videoId = $row['id'];
+        $videoId = $row['idVideo'];
         $title = $row['title'];
         $thumbnail = $row['thumbnail'];
         $uploadedAt = $row['uploaded_at']->format('Y-m-d');
@@ -72,10 +85,10 @@ if ($stmt !== false) {
         $videos[] = $row;
         $totalVideos++;
 
-        $totalViews += getViews($row['id']);
-        $totalWatchTime += getWatchTime($row['id']);
-        $totalLikes += getLikes($row['id']);
-        $totalComments += getComments($row['id']);
+        $totalViews += getViews($row['idVideo']);
+        $totalWatchTime += getWatchTime($row['idVideo']);
+        $totalLikes += getLikes($row['idVideo']);
+        $totalComments += getComments($row['idVideo']);
     }
 } else {
     echo "Error saat mengambil data video: " . print_r(sqlsrv_errors(), true);
@@ -288,10 +301,10 @@ function getComments($videoId)
         foreach ($videos as $video) {
             // Hitung jumlah views, watch time, like, dan komentar
             // Misalnya, Anda memiliki fungsi untuk mendapatkan data tersebut
-            $views = getViews($video['id']);
-            $watchTime = getWatchTime($video['id']);
-            $likes = getLikes($video['id']);
-            $comments = getComments($video['id']);
+            $views = getViews($video['idVideo']);
+            $watchTime = getWatchTime($video['idVideo']);
+            $likes = getLikes($video['idVideo']);
+            $comments = getComments($video['idVideo']);
             ?>
             <!-- Thumbnail -->
             <div class="Rectangle27"
@@ -330,15 +343,25 @@ function getComments($videoId)
                 <?= number_format($likes) ?>
             </div>
 
-            <!-- Komentar -->
-            <a href="KomenFilter.php?id=<?= htmlspecialchars($video['id']) ?>" class="Komentar"
-                style="width: 126px; height: 28px; left: 1384px; top: <?= $top + 69 ?>px; position: absolute; color: black; font-size: 20px; font-family: Roboto; ">
-                <?= number_format($comments) ?>
-            </a>
+            <?php if ($RoleName == "Owner" || $RoleName == "Manager" || $RoleName == 'Editor'): ?>
+                <!-- Komentar -->
+                <a href="KomenFilter.php?id=<?= htmlspecialchars($video['idVideo']) ?>" class="Komentar"
+                    style="width: 126px; height: 28px; left: 1384px; top: <?= $top + 69 ?>px; position: absolute; color: black; font-size: 20px; font-family: Roboto; ">
+                    <?= number_format($comments) ?>
+                </a>
+            <?php else: ?>
+                <div class="Komentar"
+                    style="width: 126px; height: 28px; left: 1384px; top: <?= $top + 69 ?>px; position: absolute; color: black; font-size: 20px; font-family: Roboto; ">
+                    <?= number_format($comments) ?>
+                </div>
+
+            <?php endif; ?>
+
+
 
             <!-- Tombol Edit -->
             <div class='Edit03' style='left: 1457px; top: <?= $top + 57 ?>px; position: absolute'>
-                <a href='EditKonten.php?id=<?= htmlspecialchars($video['id']) ?>'>
+                <a href='EditKonten.php?id=<?= htmlspecialchars(string: $video['idVideo']) ?>'>
                     <svg width='43' height='43' viewBox='0 0 43 43' fill='none' xmlns='http://www.w3.org/2000/svg'>
                         <path fill-rule='evenodd' clip-rule='evenodd'
                             d='M24.866 6.6419C26.965 4.54283 30.3683 4.54283 32.4674 6.6419L36.3581 10.5326C38.4572 12.6317 38.4572 16.035 36.3581 18.134L17.3919 37.1002C17.0559 37.4362 16.6002 37.625 16.125 37.625H7.16667C6.17716 37.625 5.375 36.8228 5.375 35.8333V26.875C5.375 26.3998 5.56376 25.9441 5.89977 25.6081L24.866 6.6419ZM29.9336 9.1757C29.2339 8.47601 28.0995 8.47601 27.3998 9.1757L25.8255 10.75L32.25 17.1745L33.8243 15.6002C34.524 14.9005 34.524 13.7661 33.8243 13.0664L29.9336 9.1757ZM29.7162 19.7083L23.2917 13.2838L8.95833 27.6171V34.0417H15.3829L29.7162 19.7083Z'
