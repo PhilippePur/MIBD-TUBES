@@ -12,7 +12,7 @@ $sql = "SELECT
         WHERE U.idUser = ?";
 
 $params = [$uid];
-$stmt = sqlsrv_query( $conn, $sql,  $params);
+$stmt = sqlsrv_query($conn, $sql, $params);
 
 if ($stmt && sqlsrv_has_rows($stmt)) {
     $channelInfo = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
