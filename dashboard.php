@@ -115,7 +115,7 @@ function getWatchTime($videoId)
     $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
     sqlsrv_close($conn);
     // diasumsikan watch time dalam menit, dikonversi ke jam (jika perlu)
-    return isset($row['total_watchtime']) ? $row['total_watchtime'] / 1 : 0;
+    return isset($row['total_watchtime']) ? $row['total_watchtime'] / 3600 : 0;
 }
 function getLikes($videoId)
 {
